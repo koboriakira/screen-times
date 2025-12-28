@@ -7,24 +7,24 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 
-macOS上で毎分スクリーンショットを取得し、Vision FrameworkでOCR処理して、JSONL形式でアクティビティログを記録するシステムです。
+macOS screen activity logger with OCR using Vision Framework
 
 ## 概要
 
+**screen-times** は、macOS上で自動的にスクリーンショットを取得し、OCR処理してアクティビティログを記録するツールです。Vision Frameworkを使用した高精度なOCRで、作業内容を自動的にログ化します。
+
 **主な機能：**
-- 毎分自動でスクリーンショット取得
-- アクティブウインドウ名を自動記録
-- macOSネイティブの Vision Framework でOCR処理
-- JSONL形式で軽量・スケーラブルに蓄積
-- 完了後に画像を自動削除
-- 日付ベースの自動ファイル分割（朝5時基準）
-- 手動でのタスク別ファイル分割機能
+- 🖼️ 30秒ごとの自動スクリーンショット取得
+- 🔍 Vision FrameworkによるネイティブOCR処理
+- 📝 JSONL形式での軽量ログ保存
+- 🏷️ タスクベースのログ分割機能
+- 🔄 launchdによるバックグラウンド実行
+- 🗑️ 処理後の画像自動削除
 
 **用途例：**
-- 実際の作業時間の可視化
-- 日次行動パターン分析
-- 生産性向上の自己観察
-- タスク別の作業ログ分析
+- 作業時間の可視化・分析
+- 生産性の自己観察
+- プロジェクトごとの作業ログ管理
 
 ## システム要件
 
@@ -35,44 +35,21 @@ macOS上で毎分スクリーンショットを取得し、Vision FrameworkでOC
 
 ## インストール
 
-### PyPIからインストール（推奨）
-
 ```bash
-# pipxを使用（推奨 - コマンドラインツールとして独立環境にインストール）
-pipx install screen-times
-
-# または通常のpip
 pip install screen-times
 ```
 
-### GitHubからインストール（開発版）
+### 必要な権限
 
-最新の開発版を使いたい場合：
+初回実行時、以下の権限が必要です：
 
-```bash
-# pipxで開発版をインストール
-pipx install git+https://github.com/koboriakira/screen-times.git
+1. **画面収録権限**
+   - システム設定 → プライバシーとセキュリティ → 画面収録
+   - ターミナル（または実行環境）を許可
 
-# または通常のpip
-pip install git+https://github.com/koboriakira/screen-times.git
-```
-
-### 開発者向けインストール
-
-コードを変更したい場合：
-
-```bash
-# リポジトリをクローン
-git clone https://github.com/koboriakira/screen-times.git
-cd screen-times
-
-# 仮想環境を作成してアクティベート
-python3 -m venv .venv
-source .venv/bin/activate
-
-# 開発モードでインストール
-pip install -e .[dev]
-```
+2. **アクセシビリティ権限**（アクティブウィンドウ名の取得に必要）
+   - システム設定 → プライバシーとセキュリティ → アクセシビリティ
+   - ターミナル（または実行環境）を許可
 
 ## クイックスタート
 
@@ -99,17 +76,34 @@ screenocr status
 # エージェントを起動（自動ログ記録を開始）
 screenocr start
 
-# エージェントを停止
+# エージェンインストール
+
+```bash
+pip install screen-times
+```
+
+### 2. 権限を付与
+
+システム設定 → プライバシーとセキュリティ で以下を許可：
+- 画面収録
+- アクセシビリティ
+
+### 3. 起動
+
+```bash
+# エージェントを開始（バックグラウンドで自動ログ記録）
+screenocr start
+
+# 状態確認
+screenocr status
+
+# 停止
 screenocr stop
 ```
 
-### タスク別のログ管理
+これで30秒ごとに自動的にスクリーンショットを取得し、OCR処理してログを記録します。
 
-作業を開始するときに、タスク名を指定してログを分割できます：
-
-```bash
-# 新しいタスクを開始
-screenocr split "機能実装: ユーザー認証"
+ログは `~/.screenocr_logs/` に保存され
 
 # 別のタスクを開始（前のタスクから切り替え）
 screenocr split "バグ修正: ログイン画面"
@@ -224,17 +218,31 @@ screenocr stop
 screenocr start
 ```
 
-## 詳細設定
+## 詳細設のドキュメント
 
-実行間隔を変更したい場合は、`~/Library/LaunchAgents/com.screenocr.logger.plist` を編集後、エージェントを再起動してください：
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - 技術的な設計と実装の詳細
+- [DEVELOPMENT.md](./DEVELOPMENT.md) - 開発者向けガイド
+- [RELEASING.md](./RELEASING.md) - リリースプロセス
 
-```bash
-screenocr stop
-screenocr start
-```
+## ライセンス
 
-## セキュリティに関する注意
+MIT License - 詳細は [LICENSE](./LICENSE) を参照してください。
 
+## 貢献
+
+プルリクエスト・Issueを歓迎します！
+
+1. このリポジトリをフォーク
+2. フィーチャーブランチを作成 (`git checkout -b feat/amazing-feature`)
+3. 変更をコミット (`git commit -m 'feat: add amazing feature'`)
+4. ブランチにプッシュ (`git push origin feat/amazing-feature`)
+5. Pull Requestを作成
+
+## リンク
+
+- **PyPI**: https://pypi.org/project/screen-times/
+- **GitHub**: https://github.com/koboriakira/screen-times
+- **Issues**: https://github.com/koboriakira/screen-times/issues
 ⚠️ **重要：** このシステムはスクリーン上のすべてのテキストを記録します。
 
 - パスワードや機密情報がマスキングされずに記録される可能性があります
