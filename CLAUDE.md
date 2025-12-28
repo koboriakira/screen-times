@@ -108,6 +108,7 @@ log stream --predicate 'process == "python3"' --level debug
 3. **軽量データ**: テキストのみをJSONL形式で蓄積（年間約400-500MB）
 4. **macOS最適化**: Apple Siliconで高速動作（1-2秒/回）
 5. **タイムアウト保護**: 5秒でOCR処理をタイムアウト
+6. **ファサードパターン**: 複雑な処理をシンプルなインターフェースで提供
 
 ### データフロー
 1. launchdが毎分scripts/screenshot_ocr.pyを実行
@@ -123,6 +124,64 @@ log stream --predicate 'process == "python3"' --level debug
 - `setup.cfg`: pytest、カバレッジ設定
 - `config/com.screenocr.logger.plist`: launchd設定テンプレート
 - `setup_launchd.sh`: 初回セットアップスクリプト（.venv/bin/python必須）
+
+### ファサードクラスの使用方法
+
+`ScreenOCRLogger`クラスは、スクリーンショット取得、OCR処理、ログ記録の一連の処理をシンプルなインターフェースで提供します。
+
+#### 基本的な使用方法
+```python
+from screen_ocr_logger import ScreenOCRLogger
+
+# デフォルト設定で使用
+logger = ScreenOCRLogger()
+result = logger.run()
+
+# 結果を確認
+if result.success:
+    print(f"成功: {result.text_length} 文字を記録")
+    print(f"保存先: {result.jsonl_path}")
+else:
+    print(f"失敗: {result.error}")
+
+# 古いスクリーンショットをクリーンアップ
+deleted_count = logger.cleanup()
+print(f"{deleted_count} ファイルを削除")
+```
+
+#### カスタム設定での使用
+```python
+from pathlib import Path
+from screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig
+
+# カスタム設定を作成
+config = ScreenOCRConfig(
+    screenshot_dir=Path("/custom/screenshots"),
+    timeout_seconds=10,
+    screenshot_retention_hours=48,
+    verbose=True  # 詳細ログを出力
+)
+
+# カスタム設定でロガーを初期化
+logger = ScreenOCRLogger(config)
+result = logger.run()
+```
+
+#### 設定オプション
+- `screenshot_dir`: スクリーンショット保存先ディレクトリ（デフォルト: `/tmp/screen-times`）
+- `timeout_seconds`: OCRタイムアウト時間（デフォルト: 30秒）
+- `screenshot_retention_hours`: スクリーンショット保持期間（デフォルト: 72時間）
+- `verbose`: 詳細ログ出力の有効化（デフォルト: False）
+
+#### 実行結果（ScreenOCRResult）
+- `success`: 処理が成功したかどうか
+- `timestamp`: 実行時刻
+- `window_name`: アクティブウィンドウ名
+- `screenshot_path`: スクリーンショットファイルパス
+- `text`: OCR処理結果のテキスト
+- `text_length`: テキストの文字数
+- `jsonl_path`: ログファイルパス
+- `error`: エラーメッセージ（失敗時）
 
 ### 重要な環境変数
 - `DEBUG_KEEP_IMAGES=1`: デバッグ用に画像を保持
