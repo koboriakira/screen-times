@@ -1,4 +1,8 @@
-# ScreenOCR Logger
+# screen-times
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 
 macOS上で毎分スクリーンショットを取得し、Vision FrameworkでOCR処理して、JSONL形式でアクティビティログを記録するシステムです。
 
@@ -26,45 +30,54 @@ macOS上で毎分スクリーンショットを取得し、Vision FrameworkでOC
 - Python 3.9+
 - 管理者権限（launchd登録時）
 
-## クイックスタート
+## インストール
 
-### 1. パッケージをインストール
+### PyPIからインストール（推奨）
 
-#### オプションA: 開発者向け（推奨）
+```bash
+# pipxを使用（推奨 - コマンドラインツールとして独立環境にインストール）
+pipx install screen-times
+
+# または通常のpip
+pip install screen-times
+```
+
+### GitHubからインストール（開発版）
+
+最新の開発版を使いたい場合：
+
+```bash
+# pipxで開発版をインストール
+pipx install git+https://github.com/koboriakira/screen-times.git
+
+# または通常のpip
+pip install git+https://github.com/koboriakira/screen-times.git
+```
+
+### 開発者向けインストール
+
+コードを変更したい場合：
 
 ```bash
 # リポジトリをクローン
-git clone <repository_url>
+git clone https://github.com/koboriakira/screen-times.git
 cd screen-times
 
 # 仮想環境を作成してアクティベート
 python3 -m venv .venv
-source .venv/bin/activate  # macOS/Linux
-# または .venv\Scripts\activate  # Windows
+source .venv/bin/activate
 
 # 開発モードでインストール
-pip install -e .
+pip install -e .[dev]
 ```
 
-**仮想環境をアクティベートすれば、どのディレクトリからでも `screenocr` コマンドが使えます。**
+## クイックスタート
 
-#### オプションB: グローバルインストール（上級者向け）
-
-システム全体で `screenocr` コマンドを使いたい場合：
-
-```bash
-# pipxを使用（推奨）
-pipx install git+https://github.com/koboriakira/screen-times.git
-
-# または直接pip install（非推奨）
-pip install git+https://github.com/koboriakira/screen-times.git
-```
-
-### 2. 画面収録権限を付与
+### 1. 画面収録権限を付与
 
 **重要：** システム環境設定 → セキュリティとプライバシー → 画面収録 で、ターミナルにチェックを入れてください。
 
-### 3. ScreenOCR Logger を起動
+### 2. ScreenOCR Logger を起動
 
 ```bash
 screenocr start
@@ -73,12 +86,6 @@ screenocr start
 これで毎分自動的にスクリーンショットを取得し、OCR処理してログを記録します。
 
 ## 基本的な使い方
-
-> **注意**: 開発モードでインストールした場合は、コマンド実行前に仮想環境をアクティベートしてください:
-> ```bash
-> cd ~/git/screen-times  # プロジェクトディレクトリに移動
-> source .venv/bin/activate
-> ```
 
 ### エージェントの操作
 
@@ -206,9 +213,12 @@ launchctl list | grep screenocr
 # ログディレクトリを確認
 ls -la ~/.screenocr_logs/
 
-# 手動実行でテスト
-cd ~/git/screen-times  # プロジェクトディレクトリに移動
-.venv/bin/python src/screen_times/screenshot_ocr.py
+# エージェントの状態を確認
+screenocr status
+
+# エージェントを再起動
+screenocr stop
+screenocr start
 ```
 
 ## 詳細設定
