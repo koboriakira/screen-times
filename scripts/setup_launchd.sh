@@ -42,32 +42,32 @@ error_exit() {
 # 前提条件チェック
 check_prerequisites() {
     log_info "前提条件をチェック中..."
-    
+
     # plistテンプレートの存在確認
     if [ ! -f "$PLIST_TEMPLATE" ]; then
         error_exit "plistテンプレートが見つかりません: $PLIST_TEMPLATE"
     fi
-    
+
     # メインスクリプトの存在確認
     if [ ! -f "$MAIN_SCRIPT" ]; then
         error_exit "メインスクリプトが見つかりません: $MAIN_SCRIPT"
     fi
-    
+
     # Pythonの存在確認
     if [ ! -f "$PROJECT_ROOT/.venv/bin/python" ]; then
         error_exit "Pythonの仮想環境が見つかりません: $PROJECT_ROOT/.venv"
     fi
-    
+
     # LaunchAgentsディレクトリの作成
     mkdir -p "$HOME/Library/LaunchAgents"
-    
+
     log_info "前提条件チェック完了"
 }
 
 # 既存のlaunchdエージェントをアンロード
 unload_existing() {
     log_info "既存のlaunchdエージェントをチェック中..."
-    
+
     if launchctl list | grep -q "$LAUNCHD_LABEL"; then
         log_warn "既存のエージェントを停止します..."
         launchctl unload "$PLIST_DEST" 2>/dev/null || true
@@ -78,22 +78,22 @@ unload_existing() {
 # plistファイルの生成とコピー
 install_plist() {
     log_info "plistファイルをインストール中..."
-    
+
     # Pythonパスを取得
     PYTHON_PATH="$PROJECT_ROOT/.venv/bin/python"
-    
+
     # テンプレートを読み込み、パスを置換してコピー
     sed -e "s|{PYTHON_PATH}|$PYTHON_PATH|g" \
         -e "s|{SCRIPT_PATH}|$MAIN_SCRIPT|g" \
         "$PLIST_TEMPLATE" > "$PLIST_DEST"
-    
+
     log_info "plistファイルをインストールしました: $PLIST_DEST"
 }
 
 # launchdエージェントをロード
 load_agent() {
     log_info "launchdエージェントをロード中..."
-    
+
     if launchctl load "$PLIST_DEST"; then
         log_info "launchdエージェントをロードしました"
     else
@@ -104,7 +104,7 @@ load_agent() {
 # セットアップの検証
 verify_setup() {
     log_info "セットアップを検証中..."
-    
+
     # エージェントが登録されているか確認
     if launchctl list | grep -q "$LAUNCHD_LABEL"; then
         log_info "✓ launchdエージェントが正常に登録されました"
@@ -112,7 +112,7 @@ verify_setup() {
         log_warn "launchdエージェントが見つかりません"
         return 1
     fi
-    
+
     # plistファイルの存在確認
     if [ -f "$PLIST_DEST" ]; then
         log_info "✓ plistファイルが存在します"
@@ -120,7 +120,7 @@ verify_setup() {
         log_warn "plistファイルが見つかりません"
         return 1
     fi
-    
+
     return 0
 }
 
@@ -152,12 +152,12 @@ test_execution() {
 main() {
     log_info "=== ScreenOCR Logger launchd セットアップ ==="
     log_info ""
-    
+
     check_prerequisites
     unload_existing
     install_plist
     load_agent
-    
+
     if verify_setup; then
         test_execution
         exit 0
