@@ -12,9 +12,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from screenshot import get_active_window, take_screenshot
-from ocr import perform_ocr
-from jsonl_manager import JsonlManager
+from .screenshot import get_active_window, take_screenshot
+from .ocr import perform_ocr
+from .jsonl_manager import JsonlManager
 
 
 @dataclass

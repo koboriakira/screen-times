@@ -11,10 +11,7 @@ from pathlib import Path
 
 import pytest
 
-# scriptsディレクトリをパスに追加
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-
-from jsonl_manager import JsonlManager
+from screen_times.jsonl_manager import JsonlManager
 
 
 class TestJsonlManager:
@@ -205,27 +202,27 @@ class TestJsonlManager:
         """タスクファイルの状態管理をテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = JsonlManager(base_dir=Path(tmpdir))
-            
+
             timestamp = datetime(2025, 12, 28, 10, 0, 0)
             task_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
             task_file.touch()
-            
+
             # 状態ファイルを設定
             manager._set_current_task_file(task_file, "2025-12-28")
-            
+
             # 状態ファイルから取得できることを確認
             task_info = manager._get_current_task_file()
             assert task_info is not None
             assert task_info["path"] == str(task_file)
             assert task_info["effective_date"] == "2025-12-28"
-            
+
             # get_current_jsonl_pathがタスクファイルを返すことを確認
             current_path = manager.get_current_jsonl_path(timestamp)
             assert current_path == task_file
-            
+
             # 状態をクリア
             manager._clear_current_task_file()
-            
+
             # クリア後は日付ベースのファイルが返されることを確認
             current_path = manager.get_current_jsonl_path(timestamp)
             assert current_path.name == "2025-12-28.jsonl"
@@ -234,24 +231,24 @@ class TestJsonlManager:
         """日付が変わったら自動的に日付ベースのファイルに切り替わることをテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = JsonlManager(base_dir=Path(tmpdir))
-            
+
             # 12/28のタスクファイルを設定
             timestamp1 = datetime(2025, 12, 28, 10, 0, 0)
             task_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
             task_file.touch()
             manager._set_current_task_file(task_file, "2025-12-28")
-            
+
             # 同じ日付の場合はタスクファイルが返される
             current_path = manager.get_current_jsonl_path(timestamp1)
             assert current_path == task_file
-            
+
             # 日付が変わった場合（12/29の6時）
             timestamp2 = datetime(2025, 12, 29, 6, 0, 0)
             current_path = manager.get_current_jsonl_path(timestamp2)
-            
+
             # 日付ベースのファイルに自動切り替え
             assert current_path.name == "2025-12-29.jsonl"
-            
+
             # 状態ファイルがクリアされていることを確認
             assert manager._get_current_task_file() is None
 
@@ -259,19 +256,18 @@ class TestJsonlManager:
         """タスクファイルが削除された場合に日付ベースに切り替わることをテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = JsonlManager(base_dir=Path(tmpdir))
-            
+
             timestamp = datetime(2025, 12, 28, 10, 0, 0)
             task_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
             task_file.touch()
             manager._set_current_task_file(task_file, "2025-12-28")
-            
+
             # タスクファイルを削除
             task_file.unlink()
-            
+
             # 日付ベースのファイルに自動切り替え
             current_path = manager.get_current_jsonl_path(timestamp)
             assert current_path.name == "2025-12-28.jsonl"
-            
+
             # 状態ファイルがクリアされていることを確認
             assert manager._get_current_task_file() is None
-

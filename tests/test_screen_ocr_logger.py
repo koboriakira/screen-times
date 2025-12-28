@@ -11,10 +11,7 @@ from unittest.mock import Mock, patch, MagicMock
 
 import pytest
 
-# scriptsディレクトリをパスに追加
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-
-from screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig, ScreenOCRResult
+from screen_times.screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig, ScreenOCRResult
 
 
 class TestScreenOCRConfig:
@@ -101,9 +98,9 @@ class TestScreenOCRLogger:
         assert logger.config.screenshot_dir == Path("/custom/path")
         assert logger.config.timeout_seconds == 10
 
-    @patch('screen_ocr_logger.perform_ocr')
-    @patch('screen_ocr_logger.take_screenshot')
-    @patch('screen_ocr_logger.get_active_window')
+    @patch('screen_times.screen_ocr_logger.perform_ocr')
+    @patch('screen_times.screen_ocr_logger.take_screenshot')
+    @patch('screen_times.screen_ocr_logger.get_active_window')
     def test_run_success(self, mock_get_window, mock_take_screenshot, mock_perform_ocr):
         """正常なrun実行のテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -138,9 +135,9 @@ class TestScreenOCRLogger:
             mock_take_screenshot.assert_called_once()
             mock_perform_ocr.assert_called_once()
 
-    @patch('screen_ocr_logger.perform_ocr')
-    @patch('screen_ocr_logger.take_screenshot')
-    @patch('screen_ocr_logger.get_active_window')
+    @patch('screen_times.screen_ocr_logger.perform_ocr')
+    @patch('screen_times.screen_ocr_logger.take_screenshot')
+    @patch('screen_times.screen_ocr_logger.get_active_window')
     def test_run_failure(self, mock_get_window, mock_take_screenshot, mock_perform_ocr):
         """run実行時のエラーハンドリングテスト"""
         # モックの設定（例外を発生させる）
@@ -159,9 +156,9 @@ class TestScreenOCRLogger:
         assert result.text == ""
         assert result.jsonl_path is None
 
-    @patch('screen_ocr_logger.perform_ocr', side_effect=Exception("OCR failed"))
-    @patch('screen_ocr_logger.take_screenshot')
-    @patch('screen_ocr_logger.get_active_window')
+    @patch('screen_times.screen_ocr_logger.perform_ocr', side_effect=Exception("OCR failed"))
+    @patch('screen_times.screen_ocr_logger.take_screenshot')
+    @patch('screen_times.screen_ocr_logger.get_active_window')
     def test_run_ocr_failure(self, mock_get_window, mock_take_screenshot, mock_perform_ocr):
         """OCR処理失敗時のテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -250,9 +247,9 @@ class TestScreenOCRLogger:
         # 検証
         assert deleted_count == 0
 
-    @patch('screen_ocr_logger.perform_ocr')
-    @patch('screen_ocr_logger.take_screenshot')
-    @patch('screen_ocr_logger.get_active_window')
+    @patch('screen_times.screen_ocr_logger.perform_ocr')
+    @patch('screen_times.screen_ocr_logger.take_screenshot')
+    @patch('screen_times.screen_ocr_logger.get_active_window')
     def test_run_with_verbose_output(self, mock_get_window, mock_take_screenshot, mock_perform_ocr, capsys):
         """verbose=Trueでのログ出力テスト"""
         with tempfile.TemporaryDirectory() as tmpdir:

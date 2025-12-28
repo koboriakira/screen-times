@@ -11,10 +11,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# scriptsディレクトリをパスに追加
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-
-from screenshot import take_screenshot
+from screen_times.screenshot import take_screenshot
 
 
 class TestTakeScreenshot:
@@ -47,7 +44,7 @@ class TestTakeScreenshot:
             assert screenshot_dir.exists()
             assert result.exists()
 
-    @patch('screenshot.subprocess.run')
+    @patch('screen_times.screenshot.subprocess.run')
     def test_take_screenshot_command_error(self, mock_run):
         """screencaptureコマンドエラーのテスト"""
         mock_run.side_effect = subprocess.CalledProcessError(1, 'screencapture')

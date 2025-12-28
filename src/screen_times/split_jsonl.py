@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 # ローカルモジュールをインポート
-from jsonl_manager import JsonlManager
+from .jsonl_manager import JsonlManager
 
 
 def generate_task_id(description: str) -> str:
@@ -59,7 +59,7 @@ def main():
     try:
         # JSONLマネージャーの初期化
         jsonl_manager = JsonlManager(base_dir=args.base_dir)
-        
+
         # --clear オプションまたは説明なしの場合は日付ベースに戻す
         if args.clear or not args.description:
             jsonl_manager._clear_current_task_file()
@@ -79,7 +79,7 @@ def main():
 
         # メタデータを書き込み
         jsonl_manager.write_metadata(jsonl_path, args.description, timestamp)
-        
+
         # 状態ファイルを更新して、このタスクファイルを現在の書き込み先として設定
         effective_date = jsonl_manager.get_effective_date(timestamp)
         jsonl_manager._set_current_task_file(jsonl_path, effective_date.strftime("%Y-%m-%d"))
