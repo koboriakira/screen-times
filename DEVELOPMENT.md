@@ -15,7 +15,7 @@ screenocr-logger/
 │   ├── screenshot_ocr.py              # メイン処理スクリプト
 │   ├── screenshot_window.applescript  # AppleScript（アクティブ窓取得）
 │   ├── setup_launchd.sh               # launchd エージェント設定スクリプト
-│   ├── analyze_logs.py                # ログ分析ツール（オプション）
+
 │   └── rotate_logs.py                 # ログローテーション（オプション）
 ├── config/
 │   └── com.screenocr.logger.plist     # launchd 設定テンプレート
@@ -97,36 +97,6 @@ launchctl load ~/Library/LaunchAgents/com.screenocr.logger.plist
 
 # 4. 初回テスト実行
 python3 scripts/screenshot_ocr.py
-```
-
-### `scripts/analyze_logs.py` （オプション）
-
-**機能：**
-- JSONL ログを集計・分析
-- 日次レポート生成
-
-**実行例：**
-```bash
-python3 scripts/analyze_logs.py --date 2025-12-28
-python3 scripts/analyze_logs.py --week
-python3 scripts/analyze_logs.py --month
-```
-
-**出力例：**
-```
-=== Daily Activity Report: 2025-12-28 ===
-
-Active Windows:
-  VS Code           (360 min, 30%)
-  Slack             (180 min, 15%)
-  Chrome            (240 min, 20%)
-  ...
-
-Top Keywords:
-  Python, Django, testing, deployment, ...
-
-Total Capture Count: 1440
-Average Text Length: 234 chars
 ```
 
 ### `scripts/rotate_logs.py` （オプション）

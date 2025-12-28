@@ -116,10 +116,6 @@ cat ~/.screenocr_logger.jsonl | head -10
 {"timestamp": "2025-12-28T14:32:00.456789", "window": "Slack", "text": "@akira Hey, how's the project?", "text_length": 28}
 ```
 
-### 日次レポート生成（オプション）
-
-（ログ分析ツールは今後実装予定）
-
 ## 開発
 
 ### テストの実行
@@ -151,10 +147,6 @@ open htmlcov/index.html
   - 書き込み/読み込み
   - UTF-8エンコーディング
   - 追記操作
-
-```bash
-python3 scripts/analyze_logs.py --date 2025-12-28
-```
 
 ## ログフォーマット
 
