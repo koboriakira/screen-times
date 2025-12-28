@@ -12,7 +12,8 @@ import signal
 import subprocess
 import sys
 import tempfile
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +22,7 @@ from typing import Optional
 JSONL_PATH = Path.home() / ".screenocr_logger.jsonl"
 SCREENSHOT_DIR = Path("/tmp")
 TIMEOUT_SECONDS = 5
+SCREENSHOT_RETENTION_HOURS = 72  # スクリーンショット保持期間（時間）
 DEBUG_KEEP_IMAGES = os.environ.get("DEBUG_KEEP_IMAGES", "0") == "1"
 
 
@@ -52,7 +54,7 @@ def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
             check=True
         )
         app_name = result.stdout.strip() or "Unknown"
-        
+
         # PyObjCでウィンドウ情報を取得
         try:
             from Quartz import (
@@ -60,31 +62,31 @@ def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
                 kCGWindowListOptionOnScreenOnly,
                 kCGNullWindowID
             )
-            
+
             # 画面上の全ウィンドウ情報を取得
             window_list = CGWindowListCopyWindowInfo(
                 kCGWindowListOptionOnScreenOnly,
                 kCGNullWindowID
             )
-            
+
             # アクティブなアプリのウィンドウを探す
             # 正規化して比較用の文字列を作成
             normalized_app_name = app_name.lower().replace('-', '').replace(' ', '')
-            
+
             for window in window_list:
                 owner_name = window.get('kCGWindowOwnerName', '')
                 layer = window.get('kCGWindowLayer', 0)
-                
+
                 # レイヤー0（通常のウィンドウ）のみ対象
                 if layer != 0:
                     continue
-                
+
                 # 正規化して比較
                 normalized_owner = owner_name.lower().replace('-', '').replace(' ', '')
-                
+
                 # 部分一致または完全一致で判定
                 # (例: "wezterm-gui" と "WezTerm"、"Electron" と "Code")
-                if (normalized_app_name in normalized_owner or 
+                if (normalized_app_name in normalized_owner or
                     normalized_owner in normalized_app_name or
                     normalized_app_name == normalized_owner):
                     bounds = window.get('kCGWindowBounds', {})
@@ -95,13 +97,13 @@ def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
                         h = int(bounds['Height'])
                         print(f"Debug: Matched window - Owner: {owner_name}, Bounds: ({x}, {y}, {w}, {h})", file=sys.stderr)
                         return (app_name, (x, y, w, h))
-            
+
             return (app_name, None)
-            
+
         except Exception as bounds_error:
             print(f"Warning: Could not get window bounds: {bounds_error}", file=sys.stderr)
             return (app_name, None)
-            
+
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as get_window_error:
         print(f"Warning: Failed to get active window: {get_window_error}", file=sys.stderr)
         return ("Unknown", None)
@@ -110,7 +112,7 @@ def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
 def take_screenshot(window_bounds: Optional[tuple[int, int, int, int]] = None) -> Path:
     """
     スクリーンショットを取得
-    
+
     Args:
         window_bounds: ウィンドウの位置とサイズ (x, y, w, h)。Noneの場合は画面全体
 
@@ -128,7 +130,7 @@ def take_screenshot(window_bounds: Optional[tuple[int, int, int, int]] = None) -
         else:
             # 画面全体をキャプチャ（フォールバック）
             cmd = ["screencapture", "-x", str(screenshot_path)]
-        
+
         subprocess.run(cmd, check=True, timeout=5)
 
         if not screenshot_path.exists():
@@ -241,10 +243,35 @@ def save_to_jsonl(timestamp: datetime, window: str, text: str) -> None:
         raise
 
 
+def cleanup_old_screenshots() -> None:
+    """
+    古いスクリーンショット（保持期間を超えたもの）を削除
+    """
+    try:
+        cutoff_time = time.time() - (SCREENSHOT_RETENTION_HOURS * 3600)
+        pattern = "screenshot_*.png"
+        deleted_count = 0
+
+        for screenshot in SCREENSHOT_DIR.glob(pattern):
+            try:
+                # ファイルの最終更新時刻を確認
+                if screenshot.stat().st_mtime < cutoff_time:
+                    screenshot.unlink()
+                    deleted_count += 1
+            except Exception as file_error:
+                # 個別のファイル削除エラーは無視して続行
+                print(f"Warning: Failed to delete {screenshot}: {file_error}", file=sys.stderr)
+                continue
+
+        if deleted_count > 0:
+            print(f"Cleaned up {deleted_count} old screenshot(s)")
+
+    except Exception as cleanup_error:
+        print(f"Warning: Screenshot cleanup failed: {cleanup_error}", file=sys.stderr)
+
+
 def main():
     """メイン処理"""
-    screenshot_path: Optional[Path] = None
-
     try:
         # タイムスタンプ取得
         timestamp = datetime.now()
@@ -267,21 +294,15 @@ def main():
         save_to_jsonl(timestamp, window, text)
         print(f"Log saved to: {JSONL_PATH}")
 
+        # スクリーンショットは保持（72時間後に自動削除される）
+        print(f"Screenshot will be kept for {SCREENSHOT_RETENTION_HOURS} hours")
+
+        # 古いスクリーンショットをクリーンアップ
+        cleanup_old_screenshots()
+
     except Exception as main_error:
         print(f"Fatal error: {main_error}", file=sys.stderr)
         sys.exit(1)
-
-    finally:
-        # 画像削除
-        if screenshot_path and screenshot_path.exists():
-            if DEBUG_KEEP_IMAGES:
-                print(f"Debug: Keeping image: {screenshot_path}")
-            else:
-                try:
-                    screenshot_path.unlink()
-                    print(f"Screenshot deleted: {screenshot_path}")
-                except Exception as delete_error:
-                    print(f"Warning: Failed to delete screenshot: {delete_error}", file=sys.stderr)
 
 
 if __name__ == "__main__":
