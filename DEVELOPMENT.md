@@ -423,12 +423,57 @@ version = "0.1.0"  # 本番リリース用
 version = "0.1.1.dev1"  # 開発版
 ```
 
+### PyPI 本番公開
+
+`.github/workflows/publish.yml` でGitHub Releaseの作成時にPyPIへ自動公開。
+
+#### PyPI APIトークンの設定
+
+1. **PyPIアカウント作成**
+   - https://pypi.org/ でアカウント登録
+   - 2要素認証（2FA）を有効化することを推奨
+
+2. **APIトークン生成**
+   - Account Settings → API tokens
+   - "Add API token" でプロジェクト用トークン作成
+
+3. **GitHub Secretsに登録**
+   - リポジトリ Settings → Secrets and variables → Actions
+   - New repository secret
+   - Name: `PYPI_API_TOKEN`
+   - Value: 生成したトークン
+
+#### リリースプロセス
+
+詳細は [RELEASING.md](RELEASING.md) を参照。
+
+```bash
+# 1. バージョン更新
+# pyproject.toml の version を更新
+
+# 2. CHANGELOG.md を更新
+# 変更内容を記載
+
+# 3. GitHub Releaseを作成
+# https://github.com/koboriakira/screen-times/releases/new
+# タグ（例: v0.1.0）を作成してリリース
+
+# 4. 自動でPyPIに公開される
+```
+
+#### PyPIからのインストール
+
+```bash
+pip install screen-times
+screenocr --help
+```
+
 ## 貢献ガイドライン
 
 1. フィーチャーブランチを作成
-2. コミットメッセージは英語で簡潔に
+2. コミットメッセージはConventional Commitsの形式に従う
 3. テストを追加・更新
-4. `black`，`flake8` でフォーマット
+4. `black`、`flake8`、`mypy` でフォーマット・チェック
 5. プルリクエストを作成
 
 ---
