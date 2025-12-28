@@ -116,62 +116,6 @@ cat ~/.screenocr_logger.jsonl | head -10
 {"timestamp": "2025-12-28T14:32:00.456789", "window": "Slack", "text": "@akira Hey, how's the project?", "text_length": 28}
 ```
 
-### ログ分析とレポート生成
-
-ログを分析してアクティビティレポートを生成できます：
-
-```bash
-# 今日のレポート
-.venv/bin/python scripts/analyze_logs.py
-
-# 特定の日付
-.venv/bin/python scripts/analyze_logs.py --date 2025-12-28
-
-# 過去7日間
-.venv/bin/python scripts/analyze_logs.py --week
-
-# 当月
-.venv/bin/python scripts/analyze_logs.py --month
-
-# 上位20件のウィンドウを表示
-.venv/bin/python scripts/analyze_logs.py --top 20
-
-# キーワード抽出をスキップ
-.venv/bin/python scripts/analyze_logs.py --no-keywords
-```
-
-**出力例：**
-```
-=================================
-Daily Activity Report: 2025-12-28
-=================================
-
-📊 基本統計
-  総キャプチャ数: 1,440 回
-  総文字数: 234,567 文字
-  平均文字数: 162.9 文字/回
-
-🪟 アクティブウィンドウ
-   1. VS Code                        (      6時間30分,  30.0%)
-   2. Google Chrome                  (      5時間12分,  24.0%)
-   3. Slack                          (      3時間36分,  16.7%)
-   4. Terminal                       (      2時間24分,  11.1%)
-
-🔑 頻出キーワード
-  python       ( 342)  function     ( 289)  code         ( 256)
-  test         ( 234)  error        ( 198)  file         ( 187)
-
-⏰ 記録時間範囲
-  開始: 2025-12-28 09:00:15
-  終了: 2025-12-28 23:59:48
-  期間: 15.0 時間
-```
-
-詳細なオプションは `--help` で確認できます：
-```bash
-.venv/bin/python scripts/analyze_logs.py --help
-```
-
 ## 開発
 
 ### テストの実行
@@ -203,10 +147,6 @@ open htmlcov/index.html
   - 書き込み/読み込み
   - UTF-8エンコーディング
   - 追記操作
-
-```bash
-python3 scripts/analyze_logs.py --date 2025-12-28
-```
 
 ## ログフォーマット
 
