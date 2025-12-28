@@ -20,7 +20,7 @@ from typing import Optional
 
 # 設定
 JSONL_PATH = Path.home() / ".screenocr_logger.jsonl"
-SCREENSHOT_DIR = Path("/tmp")
+SCREENSHOT_DIR = Path("/tmp/screen-times")
 TIMEOUT_SECONDS = 5
 SCREENSHOT_RETENTION_HOURS = 72  # スクリーンショット保持期間（時間）
 DEBUG_KEEP_IMAGES = os.environ.get("DEBUG_KEEP_IMAGES", "0") == "1"
@@ -119,6 +119,9 @@ def take_screenshot(window_bounds: Optional[tuple[int, int, int, int]] = None) -
     Returns:
         スクリーンショットのパス
     """
+    # ディレクトリが存在しない場合は作成
+    SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     screenshot_path = SCREENSHOT_DIR / f"screenshot_{timestamp}.png"
 
