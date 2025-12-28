@@ -79,30 +79,30 @@ def check_launchd_status() -> bool:
 def start_agent():
     """launchdエージェントを開始"""
     log_info("ScreenOCR Logger を起動します...")
-    
+
     project_root = get_project_root()
     plist_template = project_root / "config" / "com.screenocr.logger.plist"
     plist_dest = get_plist_path()
     main_script = project_root / "scripts" / "screenshot_ocr.py"
     python_path = project_root / ".venv" / "bin" / "python"
-    
+
     # 前提条件チェック
     if not plist_template.exists():
         log_error(f"plistテンプレートが見つかりません: {plist_template}")
         sys.exit(1)
-    
+
     if not main_script.exists():
         log_error(f"メインスクリプトが見つかりません: {main_script}")
         sys.exit(1)
-    
+
     if not python_path.exists():
         log_error(f"Pythonの仮想環境が見つかりません: {python_path}")
         log_info("まず 'pipenv install' を実行してください")
         sys.exit(1)
-    
+
     # LaunchAgentsディレクトリを作成
     plist_dest.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # 既存のエージェントをアンロード
     if check_launchd_status():
         log_warn("既存のエージェントを停止します...")
@@ -114,21 +114,21 @@ def start_agent():
             )
         except Exception:
             pass
-    
+
     # plistファイルを生成
     log_info("plistファイルを生成中...")
     with open(plist_template, 'r') as f:
         template_content = f.read()
-    
+
     # パスを置換
     plist_content = template_content.replace("{PYTHON_PATH}", str(python_path))
     plist_content = plist_content.replace("{SCRIPT_PATH}", str(main_script))
-    
+
     with open(plist_dest, 'w') as f:
         f.write(plist_content)
-    
+
     log_info(f"plistファイルを生成しました: {plist_dest}")
-    
+
     # launchdエージェントをロード
     log_info("launchdエージェントをロード中...")
     try:
@@ -141,7 +141,7 @@ def start_agent():
     except subprocess.CalledProcessError as e:
         log_error(f"launchdエージェントのロードに失敗しました: {e.stderr}")
         sys.exit(1)
-    
+
     # 検証
     if check_launchd_status():
         log_info("✓ ScreenOCR Logger が正常に起動しました")
@@ -160,17 +160,17 @@ def start_agent():
 def stop_agent():
     """launchdエージェントを停止"""
     log_info("ScreenOCR Logger を停止します...")
-    
+
     plist_dest = get_plist_path()
-    
+
     if not plist_dest.exists():
         log_warn("plistファイルが見つかりません。エージェントは登録されていません。")
         return
-    
+
     if not check_launchd_status():
         log_warn("エージェントは実行されていません。")
         return
-    
+
     # エージェントをアンロード
     try:
         subprocess.run(
@@ -190,7 +190,7 @@ def split_task(description: str = None, clear: bool = False):
     try:
         # JSONLマネージャーの初期化
         jsonl_manager = JsonlManager(base_dir=Path.home())
-        
+
         # --clear オプションまたは説明なしの場合は日付ベースに戻す
         if clear or not description:
             jsonl_manager._clear_current_task_file()
@@ -200,7 +200,7 @@ def split_task(description: str = None, clear: bool = False):
             log_info(f"日付ベースのファイルに戻しました: {current_path}")
             print(f"  実効日付: {effective_date.strftime('%Y-%m-%d')}")
             return
-        
+
         # タスクIDを生成
         def generate_task_id(desc: str) -> str:
             """タスク説明からタスクIDを生成"""
@@ -208,20 +208,20 @@ def split_task(description: str = None, clear: bool = False):
             allowed_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
             task_id = "".join(c for c in task_id if c in allowed_chars)
             return task_id or "task"
-        
+
         task_id = generate_task_id(description)
         timestamp = datetime.now()
-        
+
         # 新しいJSONLファイルのパスを取得
         jsonl_path = jsonl_manager.get_jsonl_path(timestamp=timestamp, task_id=task_id)
-        
+
         # メタデータを書き込み
         jsonl_manager.write_metadata(jsonl_path, description, timestamp)
-        
+
         # 状態ファイルを更新
         effective_date = jsonl_manager.get_effective_date(timestamp)
         jsonl_manager._set_current_task_file(jsonl_path, effective_date.strftime("%Y-%m-%d"))
-        
+
         log_info(f"新しいJSONLファイルを作成しました: {jsonl_path}")
         print(f"  タスク: {description}")
         print(f"  タスクID: {task_id}")
@@ -229,7 +229,7 @@ def split_task(description: str = None, clear: bool = False):
         print()
         print("このファイルに今後のログが記録されます。")
         print("日付が変わると（朝5時を過ぎると）、自動的に日付ベースのファイルに切り替わります。")
-        
+
     except Exception as e:
         log_error(f"タスク分割に失敗しました: {e}")
         sys.exit(1)
@@ -239,27 +239,27 @@ def show_status():
     """現在の状態を表示"""
     log_info("=== ScreenOCR Logger ステータス ===")
     print()
-    
+
     # launchdの状態
     is_running = check_launchd_status()
     status_color = Colors.GREEN if is_running else Colors.YELLOW
     status_text = "実行中" if is_running else "停止中"
     print(f"  launchdエージェント: {status_color}{status_text}{Colors.NC}")
-    
+
     # plistファイルの存在
     plist_dest = get_plist_path()
     plist_exists = plist_dest.exists()
     print(f"  plistファイル: {'存在' if plist_exists else '未作成'}")
     if plist_exists:
         print(f"    -> {plist_dest}")
-    
+
     # ログディレクトリ
     log_dir = Path.home() / ".screenocr_logs"
     if log_dir.exists():
         log_files = list(log_dir.glob("*.jsonl"))
         print(f"  ログファイル: {len(log_files)} 個")
         print(f"    -> {log_dir}")
-        
+
         # 今日のログファイル
         timestamp = datetime.now()
         jsonl_manager = JsonlManager(base_dir=Path.home())
@@ -269,9 +269,9 @@ def show_status():
             print(f"  現在のログ: {current_path.name} ({size_kb:.1f} KB)")
     else:
         print(f"  ログディレクトリ: 未作成")
-    
+
     print()
-    
+
     # ヘルプメッセージ
     if is_running:
         print("使用可能なコマンド:")
@@ -296,15 +296,15 @@ def main():
   screenocr status                # 現在の状態を表示
         """
     )
-    
+
     subparsers = parser.add_subparsers(dest="command", help="実行するコマンド")
-    
+
     # start コマンド
     subparsers.add_parser("start", help="launchdエージェントを開始")
-    
+
     # stop コマンド
     subparsers.add_parser("stop", help="launchdエージェントを停止")
-    
+
     # split コマンド
     split_parser = subparsers.add_parser("split", help="タスク別にJSONLファイルを分割")
     split_parser.add_argument(
@@ -317,17 +317,17 @@ def main():
         action="store_true",
         help="タスクファイルの設定をクリアして、日付ベースのファイルに戻す"
     )
-    
+
     # status コマンド
     subparsers.add_parser("status", help="現在の状態を表示")
-    
+
     args = parser.parse_args()
-    
+
     # コマンドが指定されていない場合はヘルプを表示
     if not args.command:
         parser.print_help()
         sys.exit(0)
-    
+
     # コマンドを実行
     if args.command == "start":
         start_agent()
