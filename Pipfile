@@ -1,0 +1,14 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pyobjc-framework-cocoa = ">=12.0"
+pyobjc-framework-vision = ">=12.0"
+pyobjc-framework-quartz = ">=12.0"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"
