@@ -38,23 +38,42 @@ cd screenocr-logger
 pip install -r requirements.txt
 ```
 
-### 3. スクリプトに実行権限を付与
+### 3. launchd エージェントをセットアップ
+
+自動セットアップスクリプトを実行：
 
 ```bash
-chmod +x scripts/screenshot_ocr.py
 chmod +x scripts/setup_launchd.sh
-```
-
-### 4. launchd エージェントを登録
-
-```bash
 ./scripts/setup_launchd.sh
 ```
 
-このスクリプトが以下を実行します：
-- `plist`ファイルを`~/Library/LaunchAgents/`にコピー
-- launchd エージェントを登録
-- 初回の定期実行をスケジュール
+**セットアップスクリプトの機能：**
+- 前提条件の自動チェック（plist、スクリプト、Python環境）
+- 既存エージェントの自動アンロード（再インストール時）
+- 環境に合わせたplistファイルの自動生成
+- launchdエージェントの登録
+- セットアップの検証
+- 詳細なガイダンスの表示
+
+スクリプトは以下のような出力を行います：
+
+```
+[INFO] === ScreenOCR Logger launchd セットアップ ===
+[INFO] 前提条件をチェック中...
+[INFO] 前提条件チェック完了
+[INFO] plistファイルをインストール中...
+[INFO] launchdエージェントをロードしました
+[INFO] ✓ launchdエージェントが正常に登録されました
+[INFO] セットアップが完了しました！
+```
+
+### 4. 画面収録権限の付与
+
+**重要：** 初回実行前に画面収録権限を付与してください。
+
+1. システム環境設定 → セキュリティとプライバシー → 画面収録
+2. ターミナル（または使用しているターミナルアプリ）にチェックを入れる
+3. 必要に応じてターミナルを再起動
 
 ### 5. 動作確認
 
@@ -63,10 +82,10 @@ chmod +x scripts/setup_launchd.sh
 launchctl list | grep screenocr
 
 # 手動実行でテスト
-python3 scripts/screenshot_ocr.py
+.venv/bin/python scripts/screenshot_ocr.py
 
 # ログを確認
-tail -f /tmp/screenocr.log
+tail -f ~/.screenocr_logger.jsonl
 ```
 
 ## 使用方法
