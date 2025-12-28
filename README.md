@@ -10,11 +10,14 @@ macOS上で毎分スクリーンショットを取得し、Vision FrameworkでOC
 - macOSネイティブの Vision Framework でOCR処理
 - JSONL形式で軽量・スケーラブルに蓄積
 - 完了後に画像を自動削除
+- **日付ベースの自動ファイル分割（朝5時基準）**
+- **手動でのタスク別ファイル分割機能**
 
 **用途例：**
 - 実際の作業時間の可視化
 - 日次行動パターン分析
 - 生産性向上の自己観察
+- **タスク別の作業ログ分析**
 
 ## システム要件
 
@@ -104,16 +107,43 @@ launchctl unload ~/Library/LaunchAgents/com.screenocr.logger.plist
 
 ### ログファイルの確認
 
-JSONL形式でログが記録されます：
+JSONL形式でログが日付ごとに記録されます：
 
 ```bash
-cat ~/.screenocr_logger.jsonl | head -10
+# 今日のログを確認（朝5時基準）
+cat ~/.screenocr_logs/$(date +%Y-%m-%d).jsonl | head -10
+
+# すべてのログファイルを一覧表示
+ls -lh ~/.screenocr_logs/
 ```
 
 出力例：
 ```json
 {"timestamp": "2025-12-28T14:31:00.123456", "window": "VS Code", "text": "def screenshot_ocr():\n    ...", "text_length": 245}
 {"timestamp": "2025-12-28T14:32:00.456789", "window": "Slack", "text": "@akira Hey, how's the project?", "text_length": 28}
+```
+
+### 手動でタスク別にログを分割
+
+作業の区切りでログファイルを分割し、タスクの説明を記録できます：
+
+```bash
+# タスクを開始するときに実行
+python scripts/split_jsonl.py "〇〇機能の実装作業"
+```
+
+これにより、タスクの説明をメタデータとして含む新しいJSONLファイルが作成されます：
+
+```bash
+# 生成されるファイル例
+~/.screenocr_logs/2025-12-28_--_143045.jsonl
+```
+
+ファイルの1行目にはメタデータが記録されます：
+```json
+{"type": "task_metadata", "timestamp": "2025-12-28T14:30:45", "description": "〇〇機能の実装作業", "effective_date": "2025-12-28"}
+{"timestamp": "2025-12-28T14:31:00", "window": "VS Code", "text": "...", "text_length": 245}
+...
 ```
 
 ## 開発
@@ -147,10 +177,16 @@ open htmlcov/index.html
   - 書き込み/読み込み
   - UTF-8エンコーディング
   - 追記操作
+- `tests/test_jsonl_manager.py`: JSONLファイル管理のテスト
+  - 日付判定ロジック（朝5時基準）
+  - 自動・手動分割
+  - メタデータ書き込み
 
 ## ログフォーマット
 
-### JONLスキーマ
+### JSONLスキーマ
+
+#### 通常のログレコード
 
 | フィールド | 型 | 説明 |
 |-----------|-----|------|
@@ -158,6 +194,29 @@ open htmlcov/index.html
 | `window` | string | アクティブウインドウ名 |
 | `text` | string | OCR認識テキスト |
 | `text_length` | integer | テキストの文字数 |
+
+#### メタデータレコード（手動分割時のみ）
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `type` | string | "task_metadata" 固定 |
+| `timestamp` | string (ISO 8601) | タスク開始時刻 |
+| `description` | string | タスクの説明 |
+| `effective_date` | string (YYYY-MM-DD) | 実効日付（朝5時基準） |
+
+### ファイル分割ルール
+
+**自動分割（日付ベース）：**
+- ファイル名形式: `YYYY-MM-DD.jsonl`
+- 朝5時をトリガーとして新しいファイルを作成
+- 5時より前の時刻は前日分として扱う
+  - 例: 2025-12-28 04:59 → `2025-12-27.jsonl` に記録
+  - 例: 2025-12-28 05:00 → `2025-12-28.jsonl` に記録
+
+**手動分割（タスクベース）：**
+- ファイル名形式: `YYYY-MM-DD_<task-id>_HHMMSS.jsonl`
+- コマンド実行時に新しいファイルを作成
+- ファイルの1行目にタスクのメタデータを記録
 
 ## トラブルシューティング
 
@@ -189,13 +248,27 @@ time python3 scripts/screenshot_ocr.py
 ### ログファイルが見つからない
 
 ```bash
-ls -la ~/.screenocr_logger.jsonl
+# 新しいログディレクトリを確認
+ls -la ~/.screenocr_logs/
+
+# 今日の日付のファイルを確認（朝5時基準）
+ls -la ~/.screenocr_logs/$(date +%Y-%m-%d).jsonl
 ```
 
 存在しない場合は手動実行で生成：
 
 ```bash
 python3 scripts/screenshot_ocr.py
+```
+
+### 手動分割コマンドの使い方
+
+```bash
+# タスクの説明を指定して新しいログファイルを開始
+python scripts/split_jsonl.py "新機能の実装"
+
+# 日本語も使用可能
+python scripts/split_jsonl.py "バグ修正作業：ログイン機能"
 ```
 
 ## 設定のカスタマイズ

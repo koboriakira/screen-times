@@ -6,7 +6,6 @@ ScreenOCR Logger - Main Script
 JSONL形式でログを記録するメインスクリプト。
 """
 
-import json
 import os
 import sys
 import time
@@ -16,35 +15,34 @@ from pathlib import Path
 # ローカルモジュールをインポート
 from screenshot import get_active_window, take_screenshot
 from ocr import perform_ocr
+from jsonl_manager import JsonlManager
 
 
 # 設定
-JSONL_PATH = Path.home() / ".screenocr_logger.jsonl"
 SCREENSHOT_DIR = Path("/tmp/screen-times")
 TIMEOUT_SECONDS = 30  # OCRタイムアウト（日本語認識のため長めに設定）
 SCREENSHOT_RETENTION_HOURS = 72  # スクリーンショット保持期間（時間）
 
+# JSONLマネージャーの初期化
+jsonl_manager = JsonlManager()
 
-def save_to_jsonl(timestamp: datetime, window: str, text: str) -> None:
+
+def save_to_jsonl(timestamp: datetime, window: str, text: str) -> Path:
     """
-    JSONL形式でログを保存
+    JSONL形式でログを保存（日付ベースで自動分割）
 
     Args:
         timestamp: タイムスタンプ
         window: ウィンドウ名
         text: OCRテキスト
-    """
-    record = {
-        "timestamp": timestamp.isoformat(),
-        "window": window,
-        "text": text,
-        "text_length": len(text)
-    }
 
+    Returns:
+        保存先のJSONLファイルパス
+    """
     try:
-        with open(JSONL_PATH, "a", encoding="utf-8") as f:
-            json.dump(record, f, ensure_ascii=False)
-            f.write("\n")
+        jsonl_path = jsonl_manager.get_current_jsonl_path(timestamp)
+        jsonl_manager.append_record(jsonl_path, timestamp, window, text)
+        return jsonl_path
     except Exception as e:
         print(f"Error: Failed to write to JSONL: {e}", file=sys.stderr)
         raise
@@ -98,8 +96,8 @@ def main():
         print(f"OCR completed: {len(text)} characters")
 
         # JSONL保存
-        save_to_jsonl(timestamp, window, text)
-        print(f"Log saved to: {JSONL_PATH}")
+        jsonl_path = save_to_jsonl(timestamp, window, text)
+        print(f"Log saved to: {jsonl_path}")
 
         # スクリーンショットは保持（72時間後に自動削除される）
         print(f"Screenshot will be kept for {SCREENSHOT_RETENTION_HOURS} hours")

@@ -13,16 +13,19 @@ screenocr-logger/
 ├── requirements.txt                   # 依存ライブラリ
 ├── scripts/
 │   ├── screenshot_ocr.py              # メイン処理スクリプト
+│   ├── screenshot.py                  # スクリーンショット取得モジュール
+│   ├── ocr.py                         # OCR処理モジュール
+│   ├── jsonl_manager.py               # JSONLファイル管理モジュール（NEW）
+│   ├── split_jsonl.py                 # 手動分割コマンド（NEW）
 │   ├── screenshot_window.applescript  # AppleScript（アクティブ窓取得）
-│   ├── setup_launchd.sh               # launchd エージェント設定スクリプト
-
-│   └── rotate_logs.py                 # ログローテーション（オプション）
+│   └── setup_launchd.sh               # launchd エージェント設定スクリプト
 ├── config/
 │   └── com.screenocr.logger.plist     # launchd 設定テンプレート
 ├── tests/
-│   ├── test_screenshot_ocr.py
-│   ├── test_vision_ocr.py
-│   └── test_jsonl_operations.py
+│   ├── test_screenshot.py
+│   ├── test_ocr.py
+│   ├── test_jsonl.py
+│   └── test_jsonl_manager.py          # JSONLマネージャーのテスト（NEW）
 └── docs/
     ├── troubleshooting.md
     ├── performance.md
@@ -37,7 +40,7 @@ screenocr-logger/
 1. AppleScript 経由でアクティブウインドウ名を取得
 2. `screencapture` コマンドでスクリーンショット取得
 3. Vision Framework で OCR 処理
-4. 結果を JSONL に追記
+4. 結果を日付ベースのJSONLファイルに追記（朝5時基準）
 5. 一時ファイル削除
 
 **実行例：**
@@ -48,12 +51,64 @@ python3 scripts/screenshot_ocr.py
 **環境変数：**
 - `DEBUG_KEEP_IMAGES=1` - スクリーンショット画像を削除しない（デバッグ用）
 - `CAPTURE_REGION="x,y,w,h"` - キャプチャ領域を指定（例：`"0,0,1920,1080"`）
-- `JSONL_PATH="/path/to/log.jsonl"` - ログファイルパスの指定
 
 **エラーハンドリング：**
-- OCR 処理がタイムアウト（5秒以上）→ エラーログに記録、スキップ
+- OCR 処理がタイムアウト（30秒以上）→ エラーログに記録、スキップ
 - アクティブウインドウ取得失敗 → "Unknown" に置換
 - 権限不足 → stderr に出力、終了コード 1
+
+### `scripts/jsonl_manager.py` （JSONLファイル管理）
+
+**機能：**
+1. 朝5時を基準とした実効日付の計算
+2. 日付ベースの自動ファイル分割
+3. タスクIDベースの手動ファイル分割
+4. メタデータの書き込み
+5. レコードの追記
+
+**主要なクラス：**
+- `JsonlManager`: JSONLファイルの管理を行うクラス
+  - `get_effective_date()`: 朝5時基準の実効日付を取得
+  - `get_jsonl_path()`: JSONLファイルのパスを取得
+  - `write_metadata()`: メタデータを書き込み
+  - `append_record()`: レコードを追記
+  - `get_current_jsonl_path()`: 現在使用すべきパスを取得
+
+**日付判定ロジック：**
+```python
+# 5時より前は前日として扱う
+if timestamp.hour < 5:
+    effective_date = timestamp - timedelta(days=1)
+else:
+    effective_date = timestamp
+```
+
+### `scripts/split_jsonl.py` （手動分割コマンド）
+
+**機能：**
+1. タスクの説明を受け取る
+2. タスクIDを生成
+3. 新しいJSONLファイルを作成
+4. メタデータを1行目に書き込み
+
+**実行例：**
+```bash
+# タスクを開始
+python scripts/split_jsonl.py "新機能の実装作業"
+
+# 出力例
+✓ 新しいJSONLファイルを作成しました: /Users/user/.screenocr_logs/2025-12-28_--_143045.jsonl
+  タスク: 新機能の実装作業
+  タスクID: --
+  実効日付: 2025-12-28
+
+このファイルに今後のログが記録されます。
+注意: 自動分割（日付ベース）は引き続き動作します。
+```
+
+**コマンドライン引数：**
+- `description`: タスクの説明（必須）
+- `--base-dir`: ログディレクトリのベースパス（オプション）
 
 ### `scripts/screenshot_window.applescript` （補助）
 
