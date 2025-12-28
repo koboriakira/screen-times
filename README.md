@@ -99,6 +99,40 @@ cat ~/.screenocr_logger.jsonl | head -10
 
 ### 日次レポート生成（オプション）
 
+（ログ分析ツールは今後実装予定）
+
+## 開発
+
+### テストの実行
+
+プロジェクトには統合テストが含まれています：
+
+```bash
+# 全テストを実行
+python -m pytest tests/ -v
+
+# カバレッジレポートを生成
+python -m pytest tests/ --cov=scripts --cov-report=term --cov-report=html
+
+# HTMLカバレッジレポートを表示
+open htmlcov/index.html
+```
+
+### テストの種類
+
+- `tests/test_ocr.py`: OCR処理の統合テスト
+  - 簡単なテキスト認識
+  - 日本語テキスト認識
+  - エラーハンドリング
+- `tests/test_screenshot.py`: スクリーンショット取得のテスト
+  - 画像取得
+  - ディレクトリ作成
+  - エラーハンドリング
+- `tests/test_jsonl.py`: JSONL操作のテスト
+  - 書き込み/読み込み
+  - UTF-8エンコーディング
+  - 追記操作
+
 ```bash
 python3 scripts/analyze_logs.py --date 2025-12-28
 ```
