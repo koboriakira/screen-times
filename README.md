@@ -30,16 +30,35 @@ macOS上で毎分スクリーンショットを取得し、Vision FrameworkでOC
 
 ### 1. パッケージをインストール
 
+#### オプションA: 開発者向け（推奨）
+
 ```bash
 # リポジトリをクローン
 git clone <repository_url>
 cd screen-times
 
+# 仮想環境を作成してアクティベート
+python3 -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+# または .venv\Scripts\activate  # Windows
+
 # 開発モードでインストール
 pip install -e .
 ```
 
-これで `screenocr` コマンドが使えるようになります。
+**仮想環境をアクティベートすれば、どのディレクトリからでも `screenocr` コマンドが使えます。**
+
+#### オプションB: グローバルインストール（上級者向け）
+
+システム全体で `screenocr` コマンドを使いたい場合：
+
+```bash
+# pipxを使用（推奨）
+pipx install git+https://github.com/koboriakira/screen-times.git
+
+# または直接pip install（非推奨）
+pip install git+https://github.com/koboriakira/screen-times.git
+```
 
 ### 2. 画面収録権限を付与
 
@@ -54,6 +73,12 @@ screenocr start
 これで毎分自動的にスクリーンショットを取得し、OCR処理してログを記録します。
 
 ## 基本的な使い方
+
+> **注意**: 開発モードでインストールした場合は、コマンド実行前に仮想環境をアクティベートしてください:
+> ```bash
+> cd ~/git/screen-times  # プロジェクトディレクトリに移動
+> source .venv/bin/activate
+> ```
 
 ### エージェントの操作
 
