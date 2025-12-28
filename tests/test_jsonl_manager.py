@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""
+JSONL Manager のユニットテスト
+"""
+
+import json
+import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+import pytest
+
+# scriptsディレクトリをパスに追加
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+from jsonl_manager import JsonlManager
+
+
+class TestJsonlManager:
+    """JsonlManagerクラスのテスト"""
+
+    def test_get_effective_date_before_5am(self):
+        """5時より前の時刻は前日として扱われることをテスト"""
+        manager = JsonlManager()
+
+        # 2025-12-28 04:59 → 2025-12-27
+        timestamp = datetime(2025, 12, 28, 4, 59, 0)
+        effective_date = manager.get_effective_date(timestamp)
+
+        assert effective_date.year == 2025
+        assert effective_date.month == 12
+        assert effective_date.day == 27
+        assert effective_date.hour == 0
+        assert effective_date.minute == 0
+        assert effective_date.second == 0
+
+    def test_get_effective_date_at_5am(self):
+        """5時ちょうどは当日として扱われることをテスト"""
+        manager = JsonlManager()
+
+        # 2025-12-28 05:00 → 2025-12-28
+        timestamp = datetime(2025, 12, 28, 5, 0, 0)
+        effective_date = manager.get_effective_date(timestamp)
+
+        assert effective_date.year == 2025
+        assert effective_date.month == 12
+        assert effective_date.day == 28
+
+    def test_get_effective_date_after_5am(self):
+        """5時より後の時刻は当日として扱われることをテスト"""
+        manager = JsonlManager()
+
+        # 2025-12-28 15:30 → 2025-12-28
+        timestamp = datetime(2025, 12, 28, 15, 30, 0)
+        effective_date = manager.get_effective_date(timestamp)
+
+        assert effective_date.year == 2025
+        assert effective_date.month == 12
+        assert effective_date.day == 28
+
+    def test_get_jsonl_path_automatic(self):
+        """自動分割時のJSONLパス生成をテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            timestamp = datetime(2025, 12, 28, 10, 0, 0)
+            jsonl_path = manager.get_jsonl_path(timestamp=timestamp)
+
+            # ファイル名が日付のみであることを確認
+            assert jsonl_path.name == "2025-12-28.jsonl"
+            assert jsonl_path.parent == Path(tmpdir) / ".screenocr_logs"
+
+    def test_get_jsonl_path_manual_with_task_id(self):
+        """手動分割時のJSONLパス生成をテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            timestamp = datetime(2025, 12, 28, 10, 30, 45)
+            task_id = "feature-implementation"
+            jsonl_path = manager.get_jsonl_path(timestamp=timestamp, task_id=task_id)
+
+            # ファイル名が日付+タスクID+時刻であることを確認
+            assert jsonl_path.name == "2025-12-28_feature-implementation_103045.jsonl"
+            assert jsonl_path.parent == Path(tmpdir) / ".screenocr_logs"
+
+    def test_get_jsonl_path_before_5am(self):
+        """5時より前の時刻のJSONLパス生成をテスト（前日扱い）"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            timestamp = datetime(2025, 12, 28, 3, 0, 0)
+            jsonl_path = manager.get_jsonl_path(timestamp=timestamp)
+
+            # 前日の日付が使用されることを確認
+            assert jsonl_path.name == "2025-12-27.jsonl"
+
+    def test_write_metadata(self):
+        """メタデータの書き込みをテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            test_file = Path(tmpdir) / "test_metadata.jsonl"
+            timestamp = datetime(2025, 12, 28, 10, 0, 0)
+            description = "テスト機能の実装"
+
+            manager.write_metadata(test_file, description, timestamp)
+
+            # ファイルが作成されていることを確認
+            assert test_file.exists()
+
+            # メタデータが正しく書き込まれていることを確認
+            with open(test_file, "r", encoding="utf-8") as f:
+                metadata = json.loads(f.readline())
+
+            assert metadata["type"] == "task_metadata"
+            assert metadata["description"] == description
+            assert metadata["timestamp"] == timestamp.isoformat()
+            assert metadata["effective_date"] == "2025-12-28"
+
+    def test_write_metadata_preserves_existing_content(self):
+        """既存の内容を保持してメタデータを書き込むことをテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test_existing.jsonl"
+
+            # 既存のコンテンツを書き込み
+            existing_record = {"timestamp": "2025-12-28T09:00:00", "window": "Test", "text": "existing"}
+            with open(test_file, "w", encoding="utf-8") as f:
+                json.dump(existing_record, f, ensure_ascii=False)
+                f.write("\n")
+
+            # メタデータを追加
+            manager = JsonlManager(base_dir=Path(tmpdir))
+            timestamp = datetime(2025, 12, 28, 10, 0, 0)
+            manager.write_metadata(test_file, "新しいタスク", timestamp)
+
+            # メタデータが1行目に、既存の内容が2行目に存在することを確認
+            with open(test_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            assert len(lines) == 2
+            metadata = json.loads(lines[0])
+            existing = json.loads(lines[1])
+
+            assert metadata["type"] == "task_metadata"
+            assert existing["window"] == "Test"
+
+    def test_append_record(self):
+        """レコードの追記をテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            test_file = Path(tmpdir) / "test_append.jsonl"
+            timestamp = datetime(2025, 12, 28, 10, 0, 0)
+            window = "TestWindow"
+            text = "テストテキスト"
+
+            manager.append_record(test_file, timestamp, window, text)
+
+            # レコードが正しく書き込まれていることを確認
+            with open(test_file, "r", encoding="utf-8") as f:
+                record = json.loads(f.readline())
+
+            assert record["timestamp"] == timestamp.isoformat()
+            assert record["window"] == window
+            assert record["text"] == text
+            assert record["text_length"] == len(text)
+
+    def test_append_multiple_records(self):
+        """複数レコードの追記をテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            test_file = Path(tmpdir) / "test_multiple.jsonl"
+
+            # 3つのレコードを追記
+            for i in range(3):
+                timestamp = datetime(2025, 12, 28, 10, i, 0)
+                manager.append_record(test_file, timestamp, f"Window{i}", f"Text{i}")
+
+            # 3行書き込まれていることを確認
+            with open(test_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            assert len(lines) == 3
+
+            # 各レコードが正しいことを確認
+            for i, line in enumerate(lines):
+                record = json.loads(line)
+                assert record["window"] == f"Window{i}"
+                assert record["text"] == f"Text{i}"
+
+    def test_get_current_jsonl_path(self):
+        """現在使用すべきJSONLパスの取得をテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            timestamp = datetime(2025, 12, 28, 10, 0, 0)
+            jsonl_path = manager.get_current_jsonl_path(timestamp)
+
+            # 自動分割用のパスが返されることを確認
+            assert jsonl_path.name == "2025-12-28.jsonl"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
