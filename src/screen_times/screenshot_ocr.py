@@ -11,7 +11,7 @@ JSONL形式でログを記録するメインスクリプト。
 import sys
 from pathlib import Path
 
-from screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig
+from .screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig
 
 
 # 設定

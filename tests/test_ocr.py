@@ -11,10 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 import pytest
 
-# scriptsディレクトリをパスに追加
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-
-from ocr import perform_ocr
+from screen_times.ocr import perform_ocr
 
 
 class TestPerformOCR:
