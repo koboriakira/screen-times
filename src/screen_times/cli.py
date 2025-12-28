@@ -11,6 +11,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from typing import Optional
+
 # ローカルモジュールをインポート
 from .jsonl_manager import JsonlManager
 
@@ -183,7 +185,7 @@ def stop_agent():
         sys.exit(1)
 
 
-def split_task(description: str = None, clear: bool = False):
+def split_task(description: Optional[str] = None, clear: bool = False):
     """タスク別にJSONLファイルを分割"""
     try:
         # エージェントが停止している場合は自動起動
