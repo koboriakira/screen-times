@@ -4,18 +4,14 @@ ScreenOCR Logger - Main Script
 
 毎分スクリーンショットを取得し、Vision FrameworkでOCR処理を行い、
 JSONL形式でログを記録するメインスクリプト。
+
+ファサードパターンを使用してシンプルなインターフェースで実行する。
 """
 
-import os
 import sys
-import time
-from datetime import datetime
 from pathlib import Path
 
-# ローカルモジュールをインポート
-from screenshot import get_active_window, take_screenshot
-from ocr import perform_ocr
-from jsonl_manager import JsonlManager
+from screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig
 
 
 # 設定
@@ -23,87 +19,33 @@ SCREENSHOT_DIR = Path("/tmp/screen-times")
 TIMEOUT_SECONDS = 30  # OCRタイムアウト（日本語認識のため長めに設定）
 SCREENSHOT_RETENTION_HOURS = 72  # スクリーンショット保持期間（時間）
 
-# JSONLマネージャーの初期化
-jsonl_manager = JsonlManager()
-
-
-def save_to_jsonl(timestamp: datetime, window: str, text: str) -> Path:
-    """
-    JSONL形式でログを保存（日付ベースで自動分割）
-
-    Args:
-        timestamp: タイムスタンプ
-        window: ウィンドウ名
-        text: OCRテキスト
-
-    Returns:
-        保存先のJSONLファイルパス
-    """
-    try:
-        jsonl_path = jsonl_manager.get_current_jsonl_path(timestamp)
-        jsonl_manager.append_record(jsonl_path, timestamp, window, text)
-        return jsonl_path
-    except Exception as e:
-        print(f"Error: Failed to write to JSONL: {e}", file=sys.stderr)
-        raise
-
-
-def cleanup_old_screenshots() -> None:
-    """
-    古いスクリーンショット（保持期間を超えたもの）を削除
-    """
-    try:
-        cutoff_time = time.time() - (SCREENSHOT_RETENTION_HOURS * 3600)
-        pattern = "screenshot_*.png"
-        deleted_count = 0
-
-        for screenshot in SCREENSHOT_DIR.glob(pattern):
-            try:
-                # ファイルの最終更新時刻を確認
-                if screenshot.stat().st_mtime < cutoff_time:
-                    screenshot.unlink()
-                    deleted_count += 1
-            except Exception as file_error:
-                # 個別のファイル削除エラーは無視して続行
-                print(f"Warning: Failed to delete {screenshot}: {file_error}", file=sys.stderr)
-                continue
-
-        if deleted_count > 0:
-            print(f"Cleaned up {deleted_count} old screenshot(s)")
-
-    except Exception as cleanup_error:
-        print(f"Warning: Screenshot cleanup failed: {cleanup_error}", file=sys.stderr)
-
 
 def main():
     """メイン処理"""
     try:
-        # タイムスタンプ取得
-        timestamp = datetime.now()
+        # 設定を準備
+        config = ScreenOCRConfig(
+            screenshot_dir=SCREENSHOT_DIR,
+            timeout_seconds=TIMEOUT_SECONDS,
+            screenshot_retention_hours=SCREENSHOT_RETENTION_HOURS,
+            verbose=True  # 詳細ログを出力
+        )
 
-        # アクティブウィンドウ取得
-        window, window_bounds = get_active_window()
-        print(f"Active window: {window}")
-        if window_bounds:
-            print(f"Window bounds: {window_bounds}")
+        # ファサードを初期化
+        logger = ScreenOCRLogger(config)
 
-        # スクリーンショット取得（ウィンドウ領域のみ）
-        screenshot_path = take_screenshot(SCREENSHOT_DIR, window_bounds)
-        print(f"Screenshot saved: {screenshot_path}")
+        # メイン処理を実行
+        result = logger.run()
 
-        # OCR処理
-        text = perform_ocr(screenshot_path, TIMEOUT_SECONDS)
-        print(f"OCR completed: {len(text)} characters")
-
-        # JSONL保存
-        jsonl_path = save_to_jsonl(timestamp, window, text)
-        print(f"Log saved to: {jsonl_path}")
-
-        # スクリーンショットは保持（72時間後に自動削除される）
-        print(f"Screenshot will be kept for {SCREENSHOT_RETENTION_HOURS} hours")
+        # 結果を表示
+        if result.success:
+            print(f"Screenshot will be kept for {SCREENSHOT_RETENTION_HOURS} hours")
+        else:
+            print(f"Fatal error: {result.error}", file=sys.stderr)
+            sys.exit(1)
 
         # 古いスクリーンショットをクリーンアップ
-        cleanup_old_screenshots()
+        logger.cleanup()
 
     except Exception as main_error:
         print(f"Fatal error: {main_error}", file=sys.stderr)
