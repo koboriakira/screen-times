@@ -19,7 +19,7 @@ def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
     Returns:
         (アプリケーション名, ウィンドウ位置 (x, y, width, height) または None)
     """
-    script_path = Path(__file__).parent / "screenshot_window.applescript"
+    script_path = Path(__file__).parent / "resources" / "screenshot_window.applescript"
 
     try:
         result = subprocess.run(
