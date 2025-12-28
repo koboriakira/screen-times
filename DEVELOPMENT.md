@@ -371,23 +371,56 @@ cat profile.txt
 python3 -m memory_profiler scripts/screenshot_ocr.py
 ```
 
-## CI/CD パイプライン（今後）
+## CI/CD パイプライン
 
-```yaml
-# .github/workflows/tests.yml
-name: Tests
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-      - run: pip install -r requirements.txt && pip install -e ".[dev]"
-      - run: black --check scripts/ tests/
-      - run: flake8 scripts/ tests/
-      - run: mypy scripts/
-      - run: pytest tests/
+### Ubuntu CI (テスト・コード品質チェック)
+
+`.github/workflows/ci.yml` でPython 3.9-3.12のマトリックステスト、black/flake8/mypy/pytestを実行。
+
+### macOS Build (パッケージビルド検証)
+
+`.github/workflows/build.yml` でmacOS環境でのビルド・インストール・動作確認を実行。
+
+### TestPyPI 自動公開
+
+`.github/workflows/publish-test.yml` でmainブランチへのマージ時にTestPyPIへ自動公開。
+
+#### TestPyPI APIトークンの設定
+
+1. **TestPyPIアカウント作成**
+   - https://test.pypi.org/ でアカウント登録
+
+2. **APIトークン生成**
+   - Account Settings → API tokens
+   - "Add API token" でプロジェクト用トークン作成
+
+3. **GitHub Secretsに登録**
+   - リポジトリ Settings → Secrets and variables → Actions
+   - New repository secret
+   - Name: `TEST_PYPI_API_TOKEN`
+   - Value: 生成したトークン（`pypi-`で始まる文字列）
+
+#### TestPyPIからのインストール
+
+```bash
+# TestPyPIからインストール（依存関係はPyPIから取得）
+pip install --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            screen-times
+
+# 動作確認
+screenocr --help
+```
+
+#### バージョン管理の注意点
+
+TestPyPIでは同じバージョン番号は1度しかアップロードできません。開発版は以下のような形式を推奨：
+
+```toml
+# pyproject.toml
+version = "0.1.0"  # 本番リリース用
+# または
+version = "0.1.1.dev1"  # 開発版
 ```
 
 ## 貢献ガイドライン
