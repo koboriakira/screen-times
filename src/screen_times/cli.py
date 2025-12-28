@@ -246,6 +246,71 @@ def split_task(description: Optional[str] = None, clear: bool = False):
         sys.exit(1)
 
 
+def dry_run():
+    """dry-run実行（5秒待機後にOCR処理を実行し、結果を標準出力）"""
+    import json
+    from .screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig
+
+    log_info("Dry-runモードで実行します")
+    print()
+    print("5秒後にスクリーンショットとOCR処理を実行します...")
+    print("任意のウィンドウをアクティブにしてお待ちください。")
+    print()
+
+    # カウントダウン
+    for i in range(5, 0, -1):
+        print(f"  {i}...", flush=True)
+        import time
+
+        time.sleep(1)
+
+    print("\n実行中...\n")
+
+    # dry-runモードで実行
+    config = ScreenOCRConfig(dry_run=True, verbose=True)
+    logger = ScreenOCRLogger(config)
+    result = logger.run()
+
+    # 結果を表示
+    print("\n" + "=" * 60)
+    print("DRY-RUN 実行結果")
+    print("=" * 60)
+
+    if result.success:
+        # JSON形式で表示するデータを構築
+        output_data = {
+            "timestamp": result.timestamp.isoformat(),
+            "window": result.window_name,
+            "text": result.text,
+            "text_length": result.text_length,
+        }
+
+        print(f"\n{Colors.GREEN}✓ 成功{Colors.NC}")
+        print(f"\nタイムスタンプ: {result.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"ウィンドウ名: {result.window_name}")
+        print(f"テキスト長: {result.text_length} 文字")
+        print(f"\nスクリーンショット: {result.screenshot_path}")
+        print("\nJSONL形式（実際には保存されていません）:")
+        print("-" * 60)
+        print(json.dumps(output_data, ensure_ascii=False, indent=2))
+        print("-" * 60)
+
+        # テキストのプレビュー
+        if result.text:
+            preview_length = 200
+            preview_text = result.text[:preview_length]
+            if len(result.text) > preview_length:
+                preview_text += "..."
+            print("\nテキストプレビュー:")
+            print("-" * 60)
+            print(preview_text)
+            print("-" * 60)
+    else:
+        print(f"\n{Colors.RED}✗ 失敗{Colors.NC}")
+        print(f"エラー: {result.error}")
+        sys.exit(1)
+
+
 def show_status():
     """現在の状態を表示"""
     log_info("=== ScreenOCR Logger ステータス ===")
@@ -305,6 +370,7 @@ def main():
   screenocr split "新機能の実装"   # タスクを分割
   screenocr split --clear         # 日付ベースに戻す
   screenocr status                # 現在の状態を表示
+  screenocr dry-run               # テスト実行（JSONLに保存せず結果表示）
         """,
     )
 
@@ -330,6 +396,9 @@ def main():
     # status コマンド
     subparsers.add_parser("status", help="現在の状態を表示")
 
+    # dry-run コマンド
+    subparsers.add_parser("dry-run", help="テスト実行（5秒待機後にOCR処理、結果を標準出力）")
+
     args = parser.parse_args()
 
     # コマンドが指定されていない場合はヘルプを表示
@@ -346,6 +415,8 @@ def main():
         split_task(args.description, args.clear)
     elif args.command == "status":
         show_status()
+    elif args.command == "dry-run":
+        dry_run()
 
 
 if __name__ == "__main__":

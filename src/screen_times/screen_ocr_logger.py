@@ -25,6 +25,7 @@ class ScreenOCRConfig:
     timeout_seconds: int = 30
     screenshot_retention_hours: int = 72
     verbose: bool = False
+    dry_run: bool = False
 
 
 @dataclass
@@ -119,10 +120,15 @@ class ScreenOCRLogger:
             if self.config.verbose:
                 print(f"OCR completed: {len(text)} characters")
 
-            # 4. JSONL保存
-            jsonl_path = self._save_to_jsonl(timestamp, window_name, text)
-            if self.config.verbose:
-                print(f"Log saved to: {jsonl_path}")
+            # 4. JSONL保存（dry-runモードではスキップ）
+            if not self.config.dry_run:
+                jsonl_path = self._save_to_jsonl(timestamp, window_name, text)
+                if self.config.verbose:
+                    print(f"Log saved to: {jsonl_path}")
+            else:
+                jsonl_path = None
+                if self.config.verbose:
+                    print("[DRY RUN] JSONL保存をスキップしました")
 
             # 5. 成功結果を返す
             return ScreenOCRResult(
