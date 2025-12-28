@@ -12,14 +12,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# ローカルモジュールをインポート（split_jsonl.pyから）
-try:
-    from jsonl_manager import JsonlManager
-except ImportError:
-    # スクリプトのディレクトリをsys.pathに追加
-    script_dir = Path(__file__).parent.absolute()
-    sys.path.insert(0, str(script_dir))
-    from jsonl_manager import JsonlManager
+# ローカルモジュールをインポート
+from .jsonl_manager import JsonlManager
 
 
 # 色定義
@@ -47,9 +41,27 @@ def log_error(message: str):
 
 
 def get_project_root() -> Path:
-    """プロジェクトルートディレクトリを取得"""
-    script_dir = Path(__file__).parent.absolute()
-    return script_dir.parent
+    """プロジェクトルートディレクトリを取得
+
+    開発環境: src/screen_times/cli.py -> プロジェクトルート
+    インストール済み: site-packages/screen_times/cli.py -> ホームディレクトリにフォールバック
+    """
+    # パッケージのディレクトリ
+    package_dir = Path(__file__).parent.absolute()
+
+    # 開発環境かチェック（src/screen_times/cli.pyの場合）
+    if package_dir.parent.name == "src":
+        # 開発環境: src/screen_times -> src -> プロジェクトルート
+        return package_dir.parent.parent
+
+    # インストール済み環境: ホームディレクトリ配下のプロジェクトを探す
+    # フォールバック: カレントディレクトリまたはホームディレクトリ
+    cwd = Path.cwd()
+    if (cwd / ".venv").exists() and (cwd / "pyproject.toml").exists():
+        return cwd
+
+    # 最終フォールバック
+    return Path.home() / "git" / "screen-times"
 
 
 def get_plist_path() -> Path:
@@ -83,7 +95,7 @@ def start_agent():
     project_root = get_project_root()
     plist_template = project_root / "config" / "com.screenocr.logger.plist"
     plist_dest = get_plist_path()
-    main_script = project_root / "scripts" / "screenshot_ocr.py"
+    main_script = project_root / "src" / "screen_times" / "screenshot_ocr.py"
     python_path = project_root / ".venv" / "bin" / "python"
 
     # 前提条件チェック

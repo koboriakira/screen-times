@@ -23,32 +23,29 @@ macOS上で毎分スクリーンショットを取得し、Vision FrameworkでOC
 
 - macOS 10.15+ (Catalina以上)
 - Apple Silicon または Intel Mac（Vision Framework対応）
-- Python 3.14+
+- Python 3.9+
 - 管理者権限（launchd登録時）
 
 ## クイックスタート
 
-### 1. リポジトリをクローンして依存関係をインストール
+### 1. パッケージをインストール
 
 ```bash
+# リポジトリをクローン
 git clone <repository_url>
 cd screen-times
-pipenv install
+
+# 開発モードでインストール
+pip install -e .
 ```
 
-### 2. CLIツールをインストール
+これで `screenocr` コマンドが使えるようになります。
 
-```bash
-./scripts/install_cli.sh
-```
-
-これで任意のディレクトリから `screenocr` コマンドが使えるようになります。
-
-### 3. 画面収録権限を付与
+### 2. 画面収録権限を付与
 
 **重要：** システム環境設定 → セキュリティとプライバシー → 画面収録 で、ターミナルにチェックを入れてください。
 
-### 4. ScreenOCR Logger を起動
+### 3. ScreenOCR Logger を起動
 
 ```bash
 screenocr start
@@ -109,10 +106,10 @@ tail -f ~/.screenocr_logs/$(date +%Y-%m-%d).jsonl
 
 ```bash
 # 全テストを実行
-python -m pytest tests/ -v
+pytest tests/ -v
 
 # カバレッジレポートを生成
-python -m pytest tests/ --cov=scripts --cov-report=term --cov-report=html
+pytest tests/ --cov=src/screen_times --cov-report=term --cov-report=html
 
 # HTMLカバレッジレポートを表示
 open htmlcov/index.html
@@ -186,7 +183,7 @@ ls -la ~/.screenocr_logs/
 
 # 手動実行でテスト
 cd ~/git/screen-times  # プロジェクトディレクトリに移動
-.venv/bin/python scripts/screenshot_ocr.py
+.venv/bin/python src/screen_times/screenshot_ocr.py
 ```
 
 ## 詳細設定
