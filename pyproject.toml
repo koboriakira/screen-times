@@ -14,9 +14,9 @@ authors = [
 ]
 
 dependencies = [
-    "pyobjc-framework-Cocoa>=9.0",
-    "pyobjc-framework-Vision>=9.0",
-    "pyobjc-framework-Quartz>=9.0",
+    "pyobjc-framework-Cocoa>=12.0",
+    "pyobjc-framework-Vision>=12.0",
+    "pyobjc-framework-Quartz>=12.0",
 ]
 
 [project.optional-dependencies]
