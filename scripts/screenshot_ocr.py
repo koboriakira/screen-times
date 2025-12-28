@@ -117,10 +117,23 @@ def perform_ocr(image_path: Path) -> str:
         request = VNRecognizeTextRequest.alloc().init()
         # Accurate recognition level
         request.setRecognitionLevel_(1)  # 1 = VNRequestTextRecognitionLevelAccurate
-        if not results:
+
+        # ハンドラ作成と実行
+        handler = VNImageRequestHandler.alloc().initWithURL_options_(url, None)
+        error = None
+        success = handler.performRequests_error_([request], error)
+
+        if not success or error:
+            print(f"Error: Vision Framework request failed: {error}", file=sys.stderr)
             return ""
 
-        # テキストを結合
+        # 結果取得
+        results = request.results()
+        if not results:
+            print("Warning: No OCR results returned", file=sys.stderr)
+            return ""
+
+        print(f"Debug: Found {len(results)} text observations", file=sys.stderr)
         text_lines = []
         for observation in results:
             top_candidate = observation.topCandidates_(1)[0]
