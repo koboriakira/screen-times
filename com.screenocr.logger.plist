@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 識別子（一意である必要がある） -->
+    <key>Label</key>
+    <string>com.screenocr.logger</string>
+
+    <!-- 実行プログラムとその引数 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/python3</string>
+        <string>{SCRIPT_PATH}</string>
+    </array>
+
+    <!-- 実行間隔（秒） -->
+    <!-- 60 = 毎分、300 = 5分ごと、3600 = 毎時間 -->
+    <key>StartInterval</key>
+    <integer>60</integer>
+
+    <!-- ユーザーのホームディレクトリで実行 -->
+    <key>WorkingDirectory</key>
+    <string>$HOME</string>
+
+    <!-- 標準出力をファイルにリダイレクト -->
+    <key>StandardOutPath</key>
+    <string>/tmp/screenocr.log</string>
+
+    <!-- 標準エラーをファイルにリダイレクト -->
+    <key>StandardErrorPath</key>
+    <string>/tmp/screenocr_error.log</string>
+
+    <!-- ユーザーセッションで実行（GUI スクリーンショット取得に必須） -->
+    <key>SessionCreate</key>
+    <true/>
+
+    <!-- マシンスリープ時は実行しない -->
+    <key>KeepAlive</key>
+    <false/>
+
+    <!-- 環境変数の設定（オプション） -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- 例：デバッグモード有効化
+        <key>DEBUG_KEEP_IMAGES</key>
+        <string>1</string>
+        -->
+    </dict>
+
+    <!-- タイムアウト設定（秒） -->
+    <key>TimeOut</key>
+    <integer>30</integer>
+
+    <!-- 起動に失敗した場合の再試行設定 -->
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+
+    <!-- 終了後に自動再起動するか（重要な処理向け） -->
+    <!-- この設定は継続的に実行する必要がある場合のみ有効化 -->
+    <!-- <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    -->
+</dict>
+</plist>
