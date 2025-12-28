@@ -1,7 +1,10 @@
 # screen-times
 
+[![PyPI version](https://badge.fury.io/py/screen-times.svg)](https://badge.fury.io/py/screen-times)
+[![Python Version](https://img.shields.io/pypi/pyversions/screen-times)](https://pypi.org/project/screen-times/)
+[![CI](https://github.com/koboriakira/screen-times/workflows/CI/badge.svg)](https://github.com/koboriakira/screen-times/actions/workflows/ci.yml)
+[![Build](https://github.com/koboriakira/screen-times/workflows/Build/badge.svg)](https://github.com/koboriakira/screen-times/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 
 macOS上で毎分スクリーンショットを取得し、Vision FrameworkでOCR処理して、JSONL形式でアクティビティログを記録するシステムです。
