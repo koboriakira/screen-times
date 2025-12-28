@@ -8,7 +8,8 @@
         <key>ProgramArguments</key>
         <array>
             <string>{PYTHON_PATH}</string>
-            <string>{SCRIPT_PATH}</string>
+            <string>-m</string>
+            <string>screen_times.screen_ocr_logger</string>
         </array>
 
         <key>StartInterval</key>

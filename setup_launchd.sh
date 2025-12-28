@@ -62,14 +62,25 @@ log_success "Python 3: $(python3 --version)"
 # リポジトリディレクトリの確認
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-SCRIPT_PATH="$SCRIPT_DIR/screenshot_ocr.py"
 
-if [ ! -f "$SCRIPT_PATH" ]; then
-    log_error "メインスクリプトが見つかりません: $SCRIPT_PATH"
+# Python インタープリタのパスを取得
+PYTHON_PATH="$(which python3)"
+
+if [ -z "$PYTHON_PATH" ]; then
+    log_error "Python 3 が見つかりません"
+    exit 1
+fi
+
+# screen-times パッケージがインストールされているか確認
+if ! "$PYTHON_PATH" -c "import screen_times" 2>/dev/null; then
+    log_error "screen-times パッケージがインストールされていません"
+    log_error "以下のコマンドでインストールしてください:"
+    echo "  pip install -e $REPO_DIR"
     exit 1
 fi
 
 log_success "リポジトリパス: $REPO_DIR"
+log_success "Python インタープリタ: $PYTHON_PATH"
 
 ###############################################################################
 # 依存ライブラリのインストール確認
@@ -120,7 +131,7 @@ fi
 if [ ! -f "$PLIST_SOURCE" ]; then
     log_warning "テンプレート plist が見つかりません。新規作成します"
     mkdir -p "$REPO_DIR/config"
-    
+
     cat > "$PLIST_SOURCE" << 'PLIST_TEMPLATE'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -131,8 +142,9 @@ if [ ! -f "$PLIST_SOURCE" ]; then
     <string>com.screenocr.logger</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/python3</string>
-        <string>{SCRIPT_PATH}</string>
+        <string>{PYTHON_PATH}</string>
+        <string>-m</string>
+        <string>screen_times.screen_ocr_logger</string>
     </array>
     <key>StartInterval</key>
     <integer>60</integer>
@@ -147,7 +159,7 @@ if [ ! -f "$PLIST_SOURCE" ]; then
 </dict>
 </plist>
 PLIST_TEMPLATE
-    
+
     log_success "plist テンプレートを作成: $PLIST_SOURCE"
 fi
 
@@ -160,7 +172,7 @@ fi
 
 # テンプレートから置換して生成
 log_info "plist ファイルを設定中..."
-sed "s|{SCRIPT_PATH}|$SCRIPT_PATH|g" "$PLIST_SOURCE" > "$PLIST_DEST"
+sed "s|{PYTHON_PATH}|$PYTHON_PATH|g" "$PLIST_SOURCE" > "$PLIST_DEST"
 
 log_success "plist ファイルをインストール: $PLIST_DEST"
 
@@ -194,7 +206,7 @@ fi
 log_info "初回テスト実行を実行中..."
 echo "（画面が暗くなります）"
 
-python3 "$SCRIPT_PATH"
+"$PYTHON_PATH" -m screen_times.screen_ocr_logger
 
 if [ $? -eq 0 ]; then
     log_success "初回テスト実行に成功しました"
