@@ -40,18 +40,18 @@ def main():
     parser.add_argument(
         "description",
         nargs="?",
-        help="タスクの説明（例: '〇〇機能の実装作業'）。省略すると日付ベースのファイルに戻ります。"
+        help="タスクの説明（例: '〇〇機能の実装作業'）。省略すると日付ベースのファイルに戻ります。",
     )
     parser.add_argument(
         "--base-dir",
         type=Path,
         default=Path.home(),
-        help="JSONLファイルを保存するベースディレクトリ（デフォルト: ホームディレクトリ）"
+        help="JSONLファイルを保存するベースディレクトリ（デフォルト: ホームディレクトリ）",
     )
     parser.add_argument(
         "--clear",
         action="store_true",
-        help="タスクファイルの設定をクリアして、日付ベースのファイルに戻す"
+        help="タスクファイルの設定をクリアして、日付ベースのファイルに戻す",
     )
 
     args = parser.parse_args()

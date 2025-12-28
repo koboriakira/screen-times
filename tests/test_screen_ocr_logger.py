@@ -3,13 +3,10 @@
 ScreenOCRLogger（ファサードクラス）のユニットテスト
 """
 
-import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 from screen_times.screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig, ScreenOCRResult
 
@@ -31,7 +28,7 @@ class TestScreenOCRConfig:
             screenshot_dir=Path("/custom/path"),
             timeout_seconds=10,
             screenshot_retention_hours=48,
-            verbose=True
+            verbose=True,
         )
         assert config.screenshot_dir == Path("/custom/path")
         assert config.timeout_seconds == 10
@@ -51,7 +48,7 @@ class TestScreenOCRResult:
             screenshot_path=Path("/tmp/screenshot.png"),
             text="Test text",
             text_length=9,
-            jsonl_path=Path("/tmp/log.jsonl")
+            jsonl_path=Path("/tmp/log.jsonl"),
         )
 
         str_repr = str(result)
@@ -70,7 +67,7 @@ class TestScreenOCRResult:
             text="",
             text_length=0,
             jsonl_path=None,
-            error="Test error message"
+            error="Test error message",
         )
 
         str_repr = str(result)
@@ -90,17 +87,14 @@ class TestScreenOCRLogger:
 
     def test_init_with_custom_config(self):
         """カスタム設定での初期化テスト"""
-        config = ScreenOCRConfig(
-            screenshot_dir=Path("/custom/path"),
-            timeout_seconds=10
-        )
+        config = ScreenOCRConfig(screenshot_dir=Path("/custom/path"), timeout_seconds=10)
         logger = ScreenOCRLogger(config)
         assert logger.config.screenshot_dir == Path("/custom/path")
         assert logger.config.timeout_seconds == 10
 
-    @patch('screen_times.screen_ocr_logger.perform_ocr')
-    @patch('screen_times.screen_ocr_logger.take_screenshot')
-    @patch('screen_times.screen_ocr_logger.get_active_window')
+    @patch("screen_times.screen_ocr_logger.perform_ocr")
+    @patch("screen_times.screen_ocr_logger.take_screenshot")
+    @patch("screen_times.screen_ocr_logger.get_active_window")
     def test_run_success(self, mock_get_window, mock_take_screenshot, mock_perform_ocr):
         """正常なrun実行のテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -112,10 +106,7 @@ class TestScreenOCRLogger:
             mock_perform_ocr.return_value = "Test OCR text"
 
             # 設定とロガーの作成
-            config = ScreenOCRConfig(
-                screenshot_dir=Path(tmpdir),
-                verbose=False
-            )
+            config = ScreenOCRConfig(screenshot_dir=Path(tmpdir), verbose=False)
             logger = ScreenOCRLogger(config)
 
             # 実行
@@ -135,9 +126,9 @@ class TestScreenOCRLogger:
             mock_take_screenshot.assert_called_once()
             mock_perform_ocr.assert_called_once()
 
-    @patch('screen_times.screen_ocr_logger.perform_ocr')
-    @patch('screen_times.screen_ocr_logger.take_screenshot')
-    @patch('screen_times.screen_ocr_logger.get_active_window')
+    @patch("screen_times.screen_ocr_logger.perform_ocr")
+    @patch("screen_times.screen_ocr_logger.take_screenshot")
+    @patch("screen_times.screen_ocr_logger.get_active_window")
     def test_run_failure(self, mock_get_window, mock_take_screenshot, mock_perform_ocr):
         """run実行時のエラーハンドリングテスト"""
         # モックの設定（例外を発生させる）
@@ -156,9 +147,9 @@ class TestScreenOCRLogger:
         assert result.text == ""
         assert result.jsonl_path is None
 
-    @patch('screen_times.screen_ocr_logger.perform_ocr', side_effect=Exception("OCR failed"))
-    @patch('screen_times.screen_ocr_logger.take_screenshot')
-    @patch('screen_times.screen_ocr_logger.get_active_window')
+    @patch("screen_times.screen_ocr_logger.perform_ocr", side_effect=Exception("OCR failed"))
+    @patch("screen_times.screen_ocr_logger.take_screenshot")
+    @patch("screen_times.screen_ocr_logger.get_active_window")
     def test_run_ocr_failure(self, mock_get_window, mock_take_screenshot, mock_perform_ocr):
         """OCR処理失敗時のテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -169,10 +160,7 @@ class TestScreenOCRLogger:
             mock_take_screenshot.return_value = mock_screenshot_path
 
             # 設定とロガーの作成
-            config = ScreenOCRConfig(
-                screenshot_dir=Path(tmpdir),
-                verbose=False
-            )
+            config = ScreenOCRConfig(screenshot_dir=Path(tmpdir), verbose=False)
             logger = ScreenOCRLogger(config)
 
             # 実行
@@ -185,10 +173,7 @@ class TestScreenOCRLogger:
     def test_cleanup_no_files(self):
         """クリーンアップ（ファイルなし）のテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = ScreenOCRConfig(
-                screenshot_dir=Path(tmpdir),
-                verbose=False
-            )
+            config = ScreenOCRConfig(screenshot_dir=Path(tmpdir), verbose=False)
             logger = ScreenOCRLogger(config)
 
             # クリーンアップ実行
@@ -211,6 +196,7 @@ class TestScreenOCRLogger:
             # ファイルのタイムスタンプを古くする
             old_time = time.time() - (74 * 3600)  # 74時間前
             import os
+
             os.utime(old_file, (old_time, old_time))
 
             # 新しいファイルも作成（保持期間内）
@@ -219,9 +205,7 @@ class TestScreenOCRLogger:
 
             # 設定とロガーの作成（保持期間72時間）
             config = ScreenOCRConfig(
-                screenshot_dir=screenshot_dir,
-                screenshot_retention_hours=72,
-                verbose=False
+                screenshot_dir=screenshot_dir, screenshot_retention_hours=72, verbose=False
             )
             logger = ScreenOCRLogger(config)
 
@@ -235,10 +219,7 @@ class TestScreenOCRLogger:
 
     def test_cleanup_nonexistent_directory(self):
         """存在しないディレクトリのクリーンアップテスト"""
-        config = ScreenOCRConfig(
-            screenshot_dir=Path("/nonexistent/path"),
-            verbose=False
-        )
+        config = ScreenOCRConfig(screenshot_dir=Path("/nonexistent/path"), verbose=False)
         logger = ScreenOCRLogger(config)
 
         # クリーンアップ実行（エラーなく完了すべき）
@@ -247,10 +228,12 @@ class TestScreenOCRLogger:
         # 検証
         assert deleted_count == 0
 
-    @patch('screen_times.screen_ocr_logger.perform_ocr')
-    @patch('screen_times.screen_ocr_logger.take_screenshot')
-    @patch('screen_times.screen_ocr_logger.get_active_window')
-    def test_run_with_verbose_output(self, mock_get_window, mock_take_screenshot, mock_perform_ocr, capsys):
+    @patch("screen_times.screen_ocr_logger.perform_ocr")
+    @patch("screen_times.screen_ocr_logger.take_screenshot")
+    @patch("screen_times.screen_ocr_logger.get_active_window")
+    def test_run_with_verbose_output(
+        self, mock_get_window, mock_take_screenshot, mock_perform_ocr, capsys
+    ):
         """verbose=Trueでのログ出力テスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
             # モックの設定
@@ -261,14 +244,11 @@ class TestScreenOCRLogger:
             mock_perform_ocr.return_value = "Test text"
 
             # 設定とロガーの作成
-            config = ScreenOCRConfig(
-                screenshot_dir=Path(tmpdir),
-                verbose=True  # verbose有効化
-            )
+            config = ScreenOCRConfig(screenshot_dir=Path(tmpdir), verbose=True)  # verbose有効化
             logger = ScreenOCRLogger(config)
 
             # 実行
-            result = logger.run()
+            _ = logger.run()
 
             # 標準出力を確認
             captured = capsys.readouterr()

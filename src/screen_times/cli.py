@@ -6,11 +6,12 @@ launchdエージェントの開始・停止、タスク分割などを統合管�
 """
 
 import argparse
-import os
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+from typing import Optional
 
 # ローカルモジュールをインポート
 from .jsonl_manager import JsonlManager
@@ -18,11 +19,11 @@ from .jsonl_manager import JsonlManager
 
 # 色定義
 class Colors:
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
-    NC = '\033[0m'  # No Color
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[0;34m"
+    NC = "\033[0m"  # No Color
 
 
 def log_info(message: str):
@@ -77,12 +78,7 @@ def get_launchd_label() -> str:
 def check_launchd_status() -> bool:
     """launchdエージェントが実行中かチェック"""
     try:
-        result = subprocess.run(
-            ["launchctl", "list"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        result = subprocess.run(["launchctl", "list"], capture_output=True, text=True, check=True)
         return get_launchd_label() in result.stdout
     except subprocess.CalledProcessError:
         return False
@@ -120,23 +116,21 @@ def start_agent():
         log_warn("既存のエージェントを停止します...")
         try:
             subprocess.run(
-                ["launchctl", "unload", str(plist_dest)],
-                capture_output=True,
-                check=False
+                ["launchctl", "unload", str(plist_dest)], capture_output=True, check=False
             )
         except Exception:
             pass
 
     # plistファイルを生成
     log_info("plistファイルを生成中...")
-    with open(plist_template, 'r') as f:
+    with open(plist_template, "r") as f:
         template_content = f.read()
 
     # パスを置換
     plist_content = template_content.replace("{PYTHON_PATH}", str(python_path))
     plist_content = plist_content.replace("{SCRIPT_PATH}", str(main_script))
 
-    with open(plist_dest, 'w') as f:
+    with open(plist_dest, "w") as f:
         f.write(plist_content)
 
     log_info(f"plistファイルを生成しました: {plist_dest}")
@@ -145,10 +139,7 @@ def start_agent():
     log_info("launchdエージェントをロード中...")
     try:
         subprocess.run(
-            ["launchctl", "load", str(plist_dest)],
-            check=True,
-            capture_output=True,
-            text=True
+            ["launchctl", "load", str(plist_dest)], check=True, capture_output=True, text=True
         )
     except subprocess.CalledProcessError as e:
         log_error(f"launchdエージェントのロードに失敗しました: {e.stderr}")
@@ -163,7 +154,7 @@ def start_agent():
         print("     で、ターミナルまたはPythonに権限を付与してください")
         print()
         print("  2. ログファイルを確認:")
-        print(f"     tail -f ~/.screenocr_logs/$(date +%Y-%m-%d).jsonl")
+        print("     tail -f ~/.screenocr_logs/$(date +%Y-%m-%d).jsonl")
     else:
         log_error("エージェントの起動確認に失敗しました")
         sys.exit(1)
@@ -186,10 +177,7 @@ def stop_agent():
     # エージェントをアンロード
     try:
         subprocess.run(
-            ["launchctl", "unload", str(plist_dest)],
-            check=True,
-            capture_output=True,
-            text=True
+            ["launchctl", "unload", str(plist_dest)], check=True, capture_output=True, text=True
         )
         log_info("✓ ScreenOCR Logger を停止しました")
     except subprocess.CalledProcessError as e:
@@ -197,7 +185,7 @@ def stop_agent():
         sys.exit(1)
 
 
-def split_task(description: str = None, clear: bool = False):
+def split_task(description: Optional[str] = None, clear: bool = False):
     """タスク別にJSONLファイルを分割"""
     try:
         # エージェントが停止している場合は自動起動
@@ -291,14 +279,14 @@ def show_status():
             size_kb = current_path.stat().st_size / 1024
             print(f"  現在のログ: {current_path.name} ({size_kb:.1f} KB)")
     else:
-        print(f"  ログディレクトリ: 未作成")
+        print("ログディレクトリ: 未作成")
 
     print()
 
     # ヘルプメッセージ
     if is_running:
         print("使用可能なコマンド:")
-        print("  screenocr split \"タスク名\"  - 新しいタスクを開始")
+        print('  screenocr split "タスク名"  - 新しいタスクを開始')
         print("  screenocr stop             - エージェントを停止")
     else:
         print("使用可能なコマンド:")
@@ -317,7 +305,7 @@ def main():
   screenocr split "新機能の実装"   # タスクを分割
   screenocr split --clear         # 日付ベースに戻す
   screenocr status                # 現在の状態を表示
-        """
+        """,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="実行するコマンド")
@@ -331,14 +319,12 @@ def main():
     # split コマンド
     split_parser = subparsers.add_parser("split", help="タスク別にJSONLファイルを分割")
     split_parser.add_argument(
-        "description",
-        nargs="?",
-        help="タスクの説明（例: '〇〇機能の実装作業'）"
+        "description", nargs="?", help="タスクの説明（例: '〇〇機能の実装作業'）"
     )
     split_parser.add_argument(
         "--clear",
         action="store_true",
-        help="タスクファイルの設定をクリアして、日付ベースのファイルに戻す"
+        help="タスクファイルの設定をクリアして、日付ベースのファイルに戻す",
     )
 
     # status コマンド

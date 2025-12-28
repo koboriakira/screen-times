@@ -4,12 +4,9 @@ JSONL Manager のユニットテスト
 """
 
 import json
-import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-
-import pytest
 
 from screen_times.jsonl_manager import JsonlManager
 
@@ -121,7 +118,11 @@ class TestJsonlManager:
             test_file = Path(tmpdir) / "test_existing.jsonl"
 
             # 既存のコンテンツを書き込み
-            existing_record = {"timestamp": "2025-12-28T09:00:00", "window": "Test", "text": "existing"}
+            existing_record = {
+                "timestamp": "2025-12-28T09:00:00",
+                "window": "Test",
+                "text": "existing",
+            }
             with open(test_file, "w", encoding="utf-8") as f:
                 json.dump(existing_record, f, ensure_ascii=False)
                 f.write("\n")

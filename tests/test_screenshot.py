@@ -7,13 +7,14 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from screen_times.screenshot import take_screenshot
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS only")
 class TestTakeScreenshot:
     """スクリーンショット取得のテスト"""
 
@@ -44,10 +45,10 @@ class TestTakeScreenshot:
             assert screenshot_dir.exists()
             assert result.exists()
 
-    @patch('screen_times.screenshot.subprocess.run')
+    @patch("screen_times.screenshot.subprocess.run")
     def test_take_screenshot_command_error(self, mock_run):
         """screencaptureコマンドエラーのテスト"""
-        mock_run.side_effect = subprocess.CalledProcessError(1, 'screencapture')
+        mock_run.side_effect = subprocess.CalledProcessError(1, "screencapture")
 
         screenshot_dir = Path("/tmp/test")
         screenshot_dir.mkdir(exist_ok=True)

@@ -43,12 +43,16 @@ class JsonlManager:
         """
         if timestamp.hour < 5:
             # 5時より前なら前日とする
-            return (timestamp - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            return (timestamp - timedelta(days=1)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
         else:
             # 5時以降は当日
             return timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    def get_jsonl_path(self, timestamp: Optional[datetime] = None, task_id: Optional[str] = None) -> Path:
+    def get_jsonl_path(
+        self, timestamp: Optional[datetime] = None, task_id: Optional[str] = None
+    ) -> Path:
         """
         JSONLファイルのパスを取得
 
@@ -75,7 +79,9 @@ class JsonlManager:
 
         return self.logs_dir / filename
 
-    def write_metadata(self, filepath: Path, description: str, timestamp: Optional[datetime] = None) -> None:
+    def write_metadata(
+        self, filepath: Path, description: str, timestamp: Optional[datetime] = None
+    ) -> None:
         """
         メタデータをJSONLファイルの1行目に書き込む
 
@@ -91,7 +97,7 @@ class JsonlManager:
             "type": "task_metadata",
             "timestamp": timestamp.isoformat(),
             "description": description,
-            "effective_date": self.get_effective_date(timestamp).strftime("%Y-%m-%d")
+            "effective_date": self.get_effective_date(timestamp).strftime("%Y-%m-%d"),
         }
 
         # ファイルが存在する場合は既存の内容を読み込む
@@ -121,7 +127,7 @@ class JsonlManager:
             "timestamp": timestamp.isoformat(),
             "window": window,
             "text": text,
-            "text_length": len(text)
+            "text_length": len(text),
         }
 
         with open(filepath, "a", encoding="utf-8") as f:
@@ -131,7 +137,7 @@ class JsonlManager:
     def get_current_jsonl_path(self, timestamp: Optional[datetime] = None) -> Path:
         """
         現在使用すべきJSONLファイルのパスを取得
-        
+
         手動分割で設定されたタスクファイルがある場合はそれを使用し、
         日付が変わっていたら自動的に日付ベースのファイルに切り替える。
 
@@ -143,26 +149,29 @@ class JsonlManager:
         """
         if timestamp is None:
             timestamp = datetime.now()
-        
+
         current_effective_date = self.get_effective_date(timestamp)
-        
+
         # 状態ファイルから現在のタスクファイル情報を取得
         task_file_info = self._get_current_task_file()
-        
+
         if task_file_info:
             task_file_path = Path(task_file_info["path"])
             task_effective_date_str = task_file_info.get("effective_date")
-            
+
             # タスクファイルが存在し、かつ日付が変わっていない場合はそのファイルを使用
-            if task_file_path.exists() and task_effective_date_str == current_effective_date.strftime("%Y-%m-%d"):
+            if (
+                task_file_path.exists()
+                and task_effective_date_str == current_effective_date.strftime("%Y-%m-%d")
+            ):
                 return task_file_path
             else:
                 # 日付が変わった、またはファイルが削除されている場合は状態をクリア
                 self._clear_current_task_file()
-        
+
         # 状態ファイルがない、または日付が変わった場合は日付ベースのファイルを使用
         return self.get_jsonl_path(timestamp=timestamp, task_id=None)
-    
+
     def _get_current_task_file(self) -> Optional[dict]:
         """
         状態ファイルから現在のタスクファイル情報を取得
@@ -172,13 +181,14 @@ class JsonlManager:
         """
         if not self.state_file.exists():
             return None
-        
+
         try:
             with open(self.state_file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                return data if isinstance(data, dict) else None
         except (json.JSONDecodeError, IOError):
             return None
-    
+
     def _set_current_task_file(self, filepath: Path, effective_date: str) -> None:
         """
         状態ファイルに現在のタスクファイル情報を保存
@@ -187,14 +197,11 @@ class JsonlManager:
             filepath: タスクファイルのパス
             effective_date: 実効日付（YYYY-MM-DD形式）
         """
-        task_info = {
-            "path": str(filepath),
-            "effective_date": effective_date
-        }
-        
+        task_info = {"path": str(filepath), "effective_date": effective_date}
+
         with open(self.state_file, "w", encoding="utf-8") as f:
             json.dump(task_info, f, ensure_ascii=False)
-    
+
     def _clear_current_task_file(self) -> None:
         """
         状態ファイルをクリア（日付ベースのファイルに戻る）
