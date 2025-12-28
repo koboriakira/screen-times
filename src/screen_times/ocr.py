@@ -57,12 +57,12 @@ def perform_ocr(image_path: Path, timeout_seconds: int = 5) -> str:
         # CGImageを読み込み
         image_source = CGImageSourceCreateWithURL(url, None)
         if not image_source:
-            print(f"Error: Failed to create image source", file=sys.stderr)
+            print("Error: Failed to create image source", file=sys.stderr)
             return ""
 
         cg_image = CGImageSourceCreateImageAtIndex(image_source, 0, None)
         if not cg_image:
-            print(f"Error: Failed to get CGImage", file=sys.stderr)
+            print("Error: Failed to get CGImage", file=sys.stderr)
             return ""
 
         # リクエスト作成

@@ -6,7 +6,6 @@ launchdエージェントの開始・停止、タスク分割などを統合管�
 """
 
 import argparse
-import os
 import subprocess
 import sys
 from datetime import datetime
@@ -153,7 +152,7 @@ def start_agent():
         print("     で、ターミナルまたはPythonに権限を付与してください")
         print()
         print("  2. ログファイルを確認:")
-        print(f"     tail -f ~/.screenocr_logs/$(date +%Y-%m-%d).jsonl")
+        print("     tail -f ~/.screenocr_logs/$(date +%Y-%m-%d).jsonl")
     else:
         log_error("エージェントの起動確認に失敗しました")
         sys.exit(1)
@@ -278,7 +277,7 @@ def show_status():
             size_kb = current_path.stat().st_size / 1024
             print(f"  現在のログ: {current_path.name} ({size_kb:.1f} KB)")
     else:
-        print(f"  ログディレクトリ: 未作成")
+        print("ログディレクトリ: 未作成")
 
     print()
 

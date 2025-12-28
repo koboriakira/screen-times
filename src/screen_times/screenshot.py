@@ -69,7 +69,8 @@ def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
                         w = int(bounds["Width"])
                         h = int(bounds["Height"])
                         print(
-                            f"Debug: Matched window - Owner: {owner_name}, Bounds: ({x}, {y}, {w}, {h})",
+                            f"Debug: Matched window - Owner: {owner_name}, "
+                            f"Bounds: ({x}, {y}, {w}, {h})",
                             file=sys.stderr,
                         )
                         return (app_name, (x, y, w, h))

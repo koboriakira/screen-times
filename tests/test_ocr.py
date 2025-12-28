@@ -3,13 +3,12 @@
 OCR処理の統合テスト
 """
 
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
 
 import pytest
+from PIL import Image, ImageDraw, ImageFont
 
 from screen_times.ocr import perform_ocr
 
@@ -27,7 +26,7 @@ class TestPerformOCR:
         try:
             # システムフォントを使用
             font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 60)
-        except:
+        except OSError:
             # フォントが見つからない場合はデフォルトを使用
             font = ImageFont.load_default()
 
@@ -84,7 +83,7 @@ class TestPerformOCR:
                     try:
                         font = ImageFont.truetype(font_path, 60)
                         break
-                    except:
+                    except OSError:
                         continue
 
             # 日本語画像を作成

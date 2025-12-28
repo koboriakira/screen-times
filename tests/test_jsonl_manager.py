@@ -4,12 +4,9 @@ JSONL Manager のユニットテスト
 """
 
 import json
-import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-
-import pytest
 
 from screen_times.jsonl_manager import JsonlManager
 

@@ -3,13 +3,10 @@
 ScreenOCRLogger（ファサードクラス）のユニットテスト
 """
 
-import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 from screen_times.screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig, ScreenOCRResult
 
@@ -251,7 +248,7 @@ class TestScreenOCRLogger:
             logger = ScreenOCRLogger(config)
 
             # 実行
-            result = logger.run()
+            _ = logger.run()
 
             # 標準出力を確認
             captured = capsys.readouterr()
