@@ -41,9 +41,20 @@ cd screenocr-logger
 pip install -r requirements.txt
 ```
 
-### 3. launchd エージェントをセットアップ
+### 3. CLIツールをインストール（推奨）
 
-自動セットアップスクリプトを実行：
+統合管理ツールをインストールすることで、任意のディレクトリから操作できます：
+
+```bash
+chmod +x scripts/install_cli.sh
+./scripts/install_cli.sh
+```
+
+これにより、`screenocr` コマンドがどこからでも使えるようになります。
+
+### 4. （代替）launchd エージェントを手動セットアップ
+
+CLIツールを使わずに手動でセットアップする場合：
 
 ```bash
 chmod +x scripts/setup_launchd.sh
@@ -70,7 +81,7 @@ chmod +x scripts/setup_launchd.sh
 [INFO] セットアップが完了しました！
 ```
 
-### 4. 画面収録権限の付与
+### 5. 画面収録権限の付与
 
 **重要：** 初回実行前に画面収録権限を付与してください。
 
@@ -78,7 +89,22 @@ chmod +x scripts/setup_launchd.sh
 2. ターミナル（または使用しているターミナルアプリ）にチェックを入れる
 3. 必要に応じてターミナルを再起動
 
-### 5. 動作確認
+### 6. 動作確認
+
+CLIツールを使用する場合：
+
+```bash
+# ステータス確認
+screenocr status
+
+# エージェントを開始
+screenocr start
+
+# ログを確認
+tail -f ~/.screenocr_logs/$(date +%Y-%m-%d).jsonl
+```
+
+手動セットアップの場合：
 
 ```bash
 # launchd が正常に登録されたか確認
@@ -93,13 +119,36 @@ tail -f ~/.screenocr_logger.jsonl
 
 ## 使用方法
 
-### 自動実行の開始
+### CLIツールを使用（推奨）
+
+統合管理ツール `screenocr` を使用すると、簡単に操作できます：
+
+```bash
+# エージェントを開始
+screenocr start
+
+# エージェントを停止
+screenocr stop
+
+# タスク別にログを分割
+screenocr split "新機能の実装"
+
+# 日付ベースのファイルに戻す
+screenocr split --clear
+
+# 現在の状態を確認
+screenocr status
+```
+
+### 手動での操作
+
+#### 自動実行の開始
 
 ```bash
 launchctl load ~/Library/LaunchAgents/com.screenocr.logger.plist
 ```
 
-### 自動実行の停止
+#### 自動実行の停止
 
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.screenocr.logger.plist
@@ -125,7 +174,17 @@ ls -lh ~/.screenocr_logs/
 
 ### 手動でタスク別にログを分割
 
-作業の区切りでログファイルを分割し、タスクの説明を記録できます：
+#### CLIツールを使用する場合
+
+```bash
+# タスクを開始するときに実行
+screenocr split "〇〇機能の実装作業"
+
+# 日付ベースのファイルに戻す
+screenocr split --clear
+```
+
+#### 直接Pythonスクリプトを実行する場合
 
 ```bash
 # タスクを開始するときに実行
