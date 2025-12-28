@@ -20,6 +20,7 @@ from .jsonl_manager import JsonlManager
 @dataclass
 class ScreenOCRConfig:
     """ScreenOCRの設定"""
+
     screenshot_dir: Path = Path("/tmp/screen-times")
     timeout_seconds: int = 30
     screenshot_retention_hours: int = 72
@@ -29,6 +30,7 @@ class ScreenOCRConfig:
 @dataclass
 class ScreenOCRResult:
     """ScreenOCR実行結果"""
+
     success: bool
     timestamp: datetime
     window_name: str
@@ -108,10 +110,7 @@ class ScreenOCRLogger:
                     print(f"Window bounds: {window_bounds}")
 
             # 2. スクリーンショット取得
-            screenshot_path = take_screenshot(
-                self.config.screenshot_dir,
-                window_bounds
-            )
+            screenshot_path = take_screenshot(self.config.screenshot_dir, window_bounds)
             if self.config.verbose:
                 print(f"Screenshot saved: {screenshot_path}")
 
@@ -133,7 +132,7 @@ class ScreenOCRLogger:
                 screenshot_path=screenshot_path,
                 text=text,
                 text_length=len(text),
-                jsonl_path=jsonl_path
+                jsonl_path=jsonl_path,
             )
 
         except Exception as e:
@@ -151,7 +150,7 @@ class ScreenOCRLogger:
                 text=text,
                 text_length=len(text),
                 jsonl_path=jsonl_path,
-                error=error
+                error=error,
             )
 
     def cleanup(self) -> int:
@@ -182,8 +181,7 @@ class ScreenOCRLogger:
                     # 個別のファイル削除エラーは無視して続行
                     if self.config.verbose:
                         print(
-                            f"Warning: Failed to delete {screenshot}: {file_error}",
-                            file=sys.stderr
+                            f"Warning: Failed to delete {screenshot}: {file_error}", file=sys.stderr
                         )
                     continue
 
@@ -194,18 +192,10 @@ class ScreenOCRLogger:
 
         except Exception as cleanup_error:
             if self.config.verbose:
-                print(
-                    f"Warning: Screenshot cleanup failed: {cleanup_error}",
-                    file=sys.stderr
-                )
+                print(f"Warning: Screenshot cleanup failed: {cleanup_error}", file=sys.stderr)
             return 0
 
-    def _save_to_jsonl(
-        self,
-        timestamp: datetime,
-        window: str,
-        text: str
-    ) -> Path:
+    def _save_to_jsonl(self, timestamp: datetime, window: str, text: str) -> Path:
         """
         JSONL形式でログを保存（日付ベースで自動分割）
 

@@ -28,7 +28,7 @@ def main():
             screenshot_dir=SCREENSHOT_DIR,
             timeout_seconds=TIMEOUT_SECONDS,
             screenshot_retention_hours=SCREENSHOT_RETENTION_HOURS,
-            verbose=True  # 詳細ログを出力
+            verbose=True,  # 詳細ログを出力
         )
 
         # ファサードを初期化

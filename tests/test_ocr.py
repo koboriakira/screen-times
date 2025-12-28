@@ -14,14 +14,14 @@ import pytest
 from screen_times.ocr import perform_ocr
 
 
-@pytest.mark.skipif(sys.platform != 'darwin', reason="macOS only")
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS only")
 class TestPerformOCR:
     """OCR処理のテスト"""
 
     def create_test_image(self, text: str, output_path: Path) -> Path:
         """テスト用の画像を生成"""
         # 白い背景に黒いテキストを描画
-        img = Image.new('RGB', (800, 200), color='white')
+        img = Image.new("RGB", (800, 200), color="white")
         draw = ImageDraw.Draw(img)
 
         try:
@@ -31,13 +31,13 @@ class TestPerformOCR:
             # フォントが見つからない場合はデフォルトを使用
             font = ImageFont.load_default()
 
-        draw.text((50, 70), text, fill='black', font=font)
+        draw.text((50, 70), text, fill="black", font=font)
         img.save(output_path)
         return output_path
 
     def test_ocr_simple_text(self):
         """単純なテキストのOCR処理"""
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
             test_image = Path(f.name)
 
         try:
@@ -49,7 +49,9 @@ class TestPerformOCR:
 
             # 結果検証（完全一致ではなく部分一致で検証）
             assert len(result) > 0, "OCR result should not be empty"
-            assert "Hello" in result or "World" in result, f"Expected 'Hello' or 'World' in result, got: {result}"
+            assert (
+                "Hello" in result or "World" in result
+            ), f"Expected 'Hello' or 'World' in result, got: {result}"
 
         finally:
             test_image.unlink()
@@ -66,7 +68,7 @@ class TestPerformOCR:
 
     def test_ocr_japanese_text(self):
         """日本語テキストのOCR処理"""
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
             test_image = Path(f.name)
 
         try:
@@ -86,11 +88,11 @@ class TestPerformOCR:
                         continue
 
             # 日本語画像を作成
-            img = Image.new('RGB', (800, 200), color='white')
+            img = Image.new("RGB", (800, 200), color="white")
             draw = ImageDraw.Draw(img)
 
             if font:
-                draw.text((50, 70), "こんにちは", fill='black', font=font)
+                draw.text((50, 70), "こんにちは", fill="black", font=font)
             else:
                 # フォントが見つからない場合はスキップ
                 pytest.skip("Japanese font not found")
@@ -109,7 +111,7 @@ class TestPerformOCR:
 
     def test_ocr_timeout(self):
         """OCR処理のタイムアウトテスト"""
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
             test_image = Path(f.name)
 
         try:

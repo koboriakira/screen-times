@@ -12,6 +12,7 @@ from pathlib import Path
 
 class TimeoutError(Exception):
     """タイムアウトエラー"""
+
     pass
 
 
