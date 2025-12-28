@@ -14,6 +14,7 @@ import pytest
 from screen_times.screenshot import take_screenshot
 
 
+@pytest.mark.skipif(sys.platform != 'darwin', reason="macOS only")
 class TestTakeScreenshot:
     """スクリーンショット取得のテスト"""
 

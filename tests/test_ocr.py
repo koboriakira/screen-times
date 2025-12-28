@@ -14,6 +14,7 @@ import pytest
 from screen_times.ocr import perform_ocr
 
 
+@pytest.mark.skipif(sys.platform != 'darwin', reason="macOS only")
 class TestPerformOCR:
     """OCR処理のテスト"""
 
