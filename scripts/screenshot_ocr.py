@@ -101,8 +101,8 @@ def perform_ocr(image_path: Path) -> str:
             VNImageRequestHandler,
             VNRecognizeTextRequest,
         )
-    except ImportError as e:
-        print(f"Error: pyobjc frameworks not found: {e}", file=sys.stderr)
+    except ImportError as import_error:
+        print(f"Error: pyobjc frameworks not found: {import_error}", file=sys.stderr)
         print("Install with: pip install -r requirements.txt", file=sys.stderr)
         return ""
 
@@ -148,7 +148,12 @@ def perform_ocr(image_path: Path) -> str:
         text_lines = []
         for observation in results:
             top_candidate = observation.topCandidates_(1)[0]
-        print(f"Error: OCR processing failed: {e}", file=sys.stderr)
+            text_lines.append(top_candidate.string())
+
+        return "\n".join(text_lines)
+
+    except Exception as ocr_error:
+        print(f"Error: OCR processing failed: {ocr_error}", file=sys.stderr)
         return ""
     finally:
         signal.alarm(0)  # タイムアウトキャンセル
@@ -203,8 +208,8 @@ def main():
         save_to_jsonl(timestamp, window, text)
         print(f"Log saved to: {JSONL_PATH}")
 
-    except Exception as e:
-        print(f"Fatal error: {e}", file=sys.stderr)
+    except Exception as main_error:
+        print(f"Fatal error: {main_error}", file=sys.stderr)
         sys.exit(1)
 
     finally:
