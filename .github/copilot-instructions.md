@@ -1,6 +1,6 @@
 # Copilot向け指示書
 
-- [AGENT.md](../AGENT.md)を参照すること
+- [AGENT.md](../AGENT.md)が存在すれば、これを参照すること
 
 ```shell
 # CLUADE.mdをAGENT.mdにリンクさせるコマンド例
