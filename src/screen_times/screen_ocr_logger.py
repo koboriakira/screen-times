@@ -218,3 +218,15 @@ class ScreenOCRLogger:
             if self.config.verbose:
                 print(f"Error: Failed to write to JSONL: {e}", file=sys.stderr)
             raise
+
+
+def main():
+    """モジュールとして実行された時のエントリーポイント"""
+    logger = ScreenOCRLogger()
+    result = logger.run()
+    if not result.success:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
