@@ -72,7 +72,10 @@ python3 scripts/screenshot_ocr.py
   - `get_jsonl_path()`: JSONLファイルのパスを取得
   - `write_metadata()`: メタデータを書き込み
   - `append_record()`: レコードを追記
-  - `get_current_jsonl_path()`: 現在使用すべきパスを取得
+  - `get_current_jsonl_path()`: 現在使用すべきパスを取得（状態管理を含む）
+  - `_get_current_task_file()`: 状態ファイルから現在のタスクファイル情報を取得
+  - `_set_current_task_file()`: 状態ファイルに現在のタスクファイル情報を保存
+  - `_clear_current_task_file()`: 状態ファイルをクリア
 
 **日付判定ロジック：**
 ```python
@@ -82,6 +85,12 @@ if timestamp.hour < 5:
 else:
     effective_date = timestamp
 ```
+
+**状態管理：**
+- 状態ファイル: `~/.screenocr_logs/.current_jsonl`
+- タスクファイルが設定されている間は、そのファイルにログを記録
+- 日付が変わると（実効日付が異なると）、自動的に日付ベースのファイルに切り替え
+- タスクファイルが削除された場合も、日付ベースのファイルに切り替え
 
 ### `scripts/split_jsonl.py` （手動分割コマンド）
 
@@ -103,12 +112,18 @@ python scripts/split_jsonl.py "新機能の実装作業"
   実効日付: 2025-12-28
 
 このファイルに今後のログが記録されます。
-注意: 自動分割（日付ベース）は引き続き動作します。
+日付が変わると（朝5時を過ぎると）、自動的に日付ベースのファイルに切り替わります。
+
+# 日付ベースのファイルに戻す
+python scripts/split_jsonl.py --clear
+# または
+python scripts/split_jsonl.py
 ```
 
 **コマンドライン引数：**
-- `description`: タスクの説明（必須）
+- `description`: タスクの説明（オプション、省略すると日付ベースに戻る）
 - `--base-dir`: ログディレクトリのベースパス（オプション）
+- `--clear`: 明示的に日付ベースのファイルに戻す（オプション）
 
 ### `scripts/screenshot_window.applescript` （補助）
 

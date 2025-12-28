@@ -132,7 +132,7 @@ ls -lh ~/.screenocr_logs/
 python scripts/split_jsonl.py "〇〇機能の実装作業"
 ```
 
-これにより、タスクの説明をメタデータとして含む新しいJSONLファイルが作成されます：
+これにより、タスクの説明をメタデータとして含む新しいJSONLファイルが作成され、**以降のログはこのファイルに記録されます**：
 
 ```bash
 # 生成されるファイル例
@@ -144,6 +144,18 @@ python scripts/split_jsonl.py "〇〇機能の実装作業"
 {"type": "task_metadata", "timestamp": "2025-12-28T14:30:45", "description": "〇〇機能の実装作業", "effective_date": "2025-12-28"}
 {"timestamp": "2025-12-28T14:31:00", "window": "VS Code", "text": "...", "text_length": 245}
 ...
+```
+
+**注意事項：**
+- タスクファイルへの記録は、日付が変わる（朝5時を過ぎる）まで継続されます
+- 日付が変わると自動的に日付ベースのファイルに切り替わります
+- 手動で日付ベースのファイルに戻すこともできます：
+
+```bash
+# 日付ベースのファイルに戻す
+python scripts/split_jsonl.py --clear
+# または
+python scripts/split_jsonl.py
 ```
 
 ## 開発

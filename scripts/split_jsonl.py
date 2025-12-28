@@ -39,7 +39,8 @@ def main():
     )
     parser.add_argument(
         "description",
-        help="タスクの説明（例: '〇〇機能の実装作業'）"
+        nargs="?",
+        help="タスクの説明（例: '〇〇機能の実装作業'）。省略すると日付ベースのファイルに戻ります。"
     )
     parser.add_argument(
         "--base-dir",
@@ -47,12 +48,27 @@ def main():
         default=Path.home(),
         help="JSONLファイルを保存するベースディレクトリ（デフォルト: ホームディレクトリ）"
     )
+    parser.add_argument(
+        "--clear",
+        action="store_true",
+        help="タスクファイルの設定をクリアして、日付ベースのファイルに戻す"
+    )
 
     args = parser.parse_args()
 
     try:
         # JSONLマネージャーの初期化
         jsonl_manager = JsonlManager(base_dir=args.base_dir)
+        
+        # --clear オプションまたは説明なしの場合は日付ベースに戻す
+        if args.clear or not args.description:
+            jsonl_manager._clear_current_task_file()
+            timestamp = datetime.now()
+            effective_date = jsonl_manager.get_effective_date(timestamp)
+            current_path = jsonl_manager.get_current_jsonl_path(timestamp)
+            print(f"✓ 日付ベースのファイルに戻しました: {current_path}")
+            print(f"  実効日付: {effective_date.strftime('%Y-%m-%d')}")
+            return
 
         # タスクIDを生成
         task_id = generate_task_id(args.description)
@@ -63,14 +79,18 @@ def main():
 
         # メタデータを書き込み
         jsonl_manager.write_metadata(jsonl_path, args.description, timestamp)
+        
+        # 状態ファイルを更新して、このタスクファイルを現在の書き込み先として設定
+        effective_date = jsonl_manager.get_effective_date(timestamp)
+        jsonl_manager._set_current_task_file(jsonl_path, effective_date.strftime("%Y-%m-%d"))
 
         print(f"✓ 新しいJSONLファイルを作成しました: {jsonl_path}")
         print(f"  タスク: {args.description}")
         print(f"  タスクID: {task_id}")
-        print(f"  実効日付: {jsonl_manager.get_effective_date(timestamp).strftime('%Y-%m-%d')}")
+        print(f"  実効日付: {effective_date.strftime('%Y-%m-%d')}")
         print()
         print("このファイルに今後のログが記録されます。")
-        print("注意: 自動分割（日付ベース）は引き続き動作します。")
+        print("日付が変わると（朝5時を過ぎると）、自動的に日付ベースのファイルに切り替わります。")
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
