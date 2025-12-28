@@ -8,21 +8,54 @@ ScreenOCR LoggerはmacOS上でスクリーンショットを自動取得してVi
 
 ## 主なコマンド
 
-### 開発関連コマンド
+### 開発環境セットアップ
 ```bash
-# 依存関係のインストール
+# Python仮想環境の作成（Python 3.14が必要）
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 基本依存関係のインストール
 pip install -r requirements.txt
 
-# メインスクリプトの手動実行
-python3 scripts/screenshot_ocr.py
+# 開発用依存関係のインストール（black, mypy, pytest, flake8）
+pip install -e ".[dev]"
 
 # launchdエージェントのセットアップ
 ./setup_launchd.sh
+```
 
-# 開発ツール
-black scripts/ tests/    # コードフォーマット
-mypy scripts/           # 型チェック
-pytest tests/           # ユニットテスト実行
+### テスト・リンター実行
+```bash
+# 全テスト実行（カバレッジ付き）
+pytest tests/ --cov=scripts --cov-report=term --cov-report=html
+
+# HTMLカバレッジレポート表示
+open htmlcov/index.html
+
+# 個別テストファイル実行
+pytest tests/test_ocr.py -v
+pytest tests/test_screenshot.py -v
+pytest tests/test_jsonl.py -v
+
+# コードフォーマット・型チェック・リンター
+black scripts/ tests/
+mypy scripts/
+flake8 scripts/ tests/
+```
+
+### 手動実行・検証
+```bash
+# メインスクリプトの手動実行
+python3 scripts/screenshot_ocr.py
+
+# Vision Framework動作確認
+python3 -c "from Foundation import NSURL; from Vision import VNRecognizeTextRequest; print('Vision Framework: OK')"
+
+# AppleScript単体テスト
+osascript scripts/screenshot_window.applescript
+
+# screencapture動作テスト
+screencapture -x /tmp/test.png && ls -la /tmp/test.png
 ```
 
 ### launchd管理コマンド
@@ -42,16 +75,22 @@ tail -f /tmp/screenocr_error.log
 cat ~/.screenocr_logger.jsonl | head -10
 ```
 
-### デバッグコマンド
+### デバッグ・プロファイリング
 ```bash
 # デバッグモード（スクリーンショットを保持）
 DEBUG_KEEP_IMAGES=1 python3 scripts/screenshot_ocr.py
 
-# OCR処理のパフォーマンス測定
+# パフォーマンス測定
 time python3 scripts/screenshot_ocr.py
+
+# CPUプロファイリング
+python3 -m cProfile -s cumtime scripts/screenshot_ocr.py > profile.txt
 
 # メモリプロファイリング
 python3 -m memory_profiler scripts/screenshot_ocr.py
+
+# launchdログのリアルタイム確認
+log stream --predicate 'process == "python3"' --level debug
 ```
 
 ## アーキテクチャの特徴
@@ -79,10 +118,11 @@ python3 -m memory_profiler scripts/screenshot_ocr.py
 6. 画像ファイルを削除
 
 ### 設定ファイル
-- `pyproject.toml`: Python依存関係とツール設定
+- `pyproject.toml`: Python依存関係とツール設定（Black、mypy、pytest設定を含む）
 - `requirements.txt`: 実行時依存関係
-- `com.screenocr.logger.plist`: launchd設定テンプレート
-- `setup_launchd.sh`: 初回セットアップスクリプト
+- `setup.cfg`: pytest、カバレッジ設定
+- `config/com.screenocr.logger.plist`: launchd設定テンプレート
+- `setup_launchd.sh`: 初回セットアップスクリプト（.venv/bin/python必須）
 
 ### 重要な環境変数
 - `DEBUG_KEEP_IMAGES=1`: デバッグ用に画像を保持
