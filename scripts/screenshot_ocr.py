@@ -95,7 +95,8 @@ def perform_ocr(image_path: Path) -> str:
     """
     # pyobjc imports (遅延インポート)
     try:
-        from Foundation import NSURL
+        from Cocoa import NSURL
+        from Quartz import CGImageSourceCreateWithURL, CGImageSourceCreateImageAtIndex
         from Vision import (
             VNImageRequestHandler,
             VNRecognizeTextRequest,
@@ -113,15 +114,23 @@ def perform_ocr(image_path: Path) -> str:
         # 画像URLを作成
         url = NSURL.fileURLWithPath_(str(image_path))
 
-        # リクエスト作成
+        # CGImageを読み込み
+        image_source = CGImageSourceCreateWithURL(url, None)
+        if not image_source:
+            print(f"Error: Failed to create image source", file=sys.stderr)
+            return ""
+
+        cg_image = CGImageSourceCreateImageAtIndex(image_source, 0, None)
+        if not cg_image:
+            print(f"Error: Failed to get CGImage", file=sys.stderr)
+            return ""
+
+        # リクエスト作成（認識レベルは設定しない - デフォルトでAccurate）
         request = VNRecognizeTextRequest.alloc().init()
-        # Accurate recognition level
-        request.setRecognitionLevel_(1)  # 1 = VNRequestTextRecognitionLevelAccurate
 
         # ハンドラ作成と実行
-        handler = VNImageRequestHandler.alloc().initWithURL_options_(url, None)
-        error = None
-        success = handler.performRequests_error_([request], error)
+        handler = VNImageRequestHandler.alloc().initWithCGImage_options_(cg_image, {})
+        success, error = handler.performRequests_error_([request], None)
 
         if not success or error:
             print(f"Error: Vision Framework request failed: {error}", file=sys.stderr)
@@ -134,17 +143,11 @@ def perform_ocr(image_path: Path) -> str:
             return ""
 
         print(f"Debug: Found {len(results)} text observations", file=sys.stderr)
+
+        # テキストを結合
         text_lines = []
         for observation in results:
             top_candidate = observation.topCandidates_(1)[0]
-            text_lines.append(top_candidate.string())
-
-        return "\n".join(text_lines)
-
-    except TimeoutError:
-        print(f"Error: OCR timeout after {TIMEOUT_SECONDS} seconds", file=sys.stderr)
-        return ""
-    except Exception as e:
         print(f"Error: OCR processing failed: {e}", file=sys.stderr)
         return ""
     finally:
@@ -213,8 +216,8 @@ def main():
                 try:
                     screenshot_path.unlink()
                     print(f"Screenshot deleted: {screenshot_path}")
-                except Exception as e:
-                    print(f"Warning: Failed to delete screenshot: {e}", file=sys.stderr)
+                except Exception as delete_error:
+                    print(f"Warning: Failed to delete screenshot: {delete_error}", file=sys.stderr)
 
 
 if __name__ == "__main__":
