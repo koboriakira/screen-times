@@ -200,6 +200,17 @@ def stop_agent():
 def split_task(description: str = None, clear: bool = False):
     """タスク別にJSONLファイルを分割"""
     try:
+        # エージェントが停止している場合は自動起動
+        if not check_launchd_status():
+            log_warn("エージェントが停止しています。自動的に起動します...")
+            try:
+                start_agent()
+                print()  # 空行を追加して読みやすく
+            except SystemExit:
+                # start_agent()がsys.exit()を呼ぶ場合があるので捕捉
+                log_error("エージェントの起動に失敗しました。タスク分割を中断します。")
+                sys.exit(1)
+
         # JSONLマネージャーの初期化
         jsonl_manager = JsonlManager(base_dir=Path.home())
 
