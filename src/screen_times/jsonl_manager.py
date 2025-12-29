@@ -15,6 +15,9 @@ from typing import Optional
 class JsonlManager:
     """JSONLファイルの管理を行うクラス"""
 
+    # ファイルサイズの上限（100KB = 約50Kトークン）
+    MAX_FILE_SIZE_BYTES = 100 * 1024  # 100KB
+
     def __init__(self, base_dir: Path = Path.home()):
         """
         初期化
@@ -51,7 +54,10 @@ class JsonlManager:
             return timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
 
     def get_jsonl_path(
-        self, timestamp: Optional[datetime] = None, task_id: Optional[str] = None
+        self,
+        timestamp: Optional[datetime] = None,
+        task_id: Optional[str] = None,
+        include_time: bool = False,
     ) -> Path:
         """
         JSONLファイルのパスを取得
@@ -59,6 +65,7 @@ class JsonlManager:
         Args:
             timestamp: タイムスタンプ（Noneの場合は現在時刻）
             task_id: タスクID（手動分割時に指定）
+            include_time: Trueの場合、ファイル名に時刻を含める（サイズベース分割用）
 
         Returns:
             JSONLファイルのPath
@@ -73,8 +80,12 @@ class JsonlManager:
             # 手動分割: 日付 + タスクID + タイムスタンプ
             time_str = timestamp.strftime("%H%M%S")
             filename = f"{date_str}_{task_id}_{time_str}.jsonl"
+        elif include_time:
+            # サイズベース分割: 日付 + 時刻
+            time_str = timestamp.strftime("%H%M%S")
+            filename = f"{date_str}_{time_str}.jsonl"
         else:
-            # 自動分割: 日付のみ
+            # 自動分割: 日付のみ（下位互換性のため残す）
             filename = f"{date_str}.jsonl"
 
         return self.logs_dir / filename
@@ -113,16 +124,35 @@ class JsonlManager:
             for line in existing_lines:
                 f.write(line)
 
-    def append_record(self, filepath: Path, timestamp: datetime, window: str, text: str) -> None:
+    def append_record(self, filepath: Path, timestamp: datetime, window: str, text: str) -> Path:
         """
         レコードをJSONLファイルに追記
+
+        ファイルサイズが上限（100KB）を超えている場合は、新しいタイムスタンプ付きファイルを作成する。
 
         Args:
             filepath: JSONLファイルのパス
             timestamp: タイムスタンプ
             window: ウィンドウ名
             text: OCRテキスト
+
+        Returns:
+            実際に書き込んだファイルのPath（サイズ超過時は新しいファイルのパス）
         """
+        # ファイルサイズチェック: 既存ファイルが上限を超えていたら新ファイルを作成
+        if filepath.exists() and filepath.stat().st_size >= self.MAX_FILE_SIZE_BYTES:
+            # 新しいタイムスタンプ付きファイルを作成
+            filepath = self.get_jsonl_path(timestamp=timestamp, include_time=True)
+            # メタデータを書き込む
+            description = (
+                f"Auto-split due to file size " f"exceeding {self.MAX_FILE_SIZE_BYTES} bytes"
+            )
+            self.write_metadata(
+                filepath,
+                description=description,
+                timestamp=timestamp,
+            )
+
         record = {
             "timestamp": timestamp.isoformat(),
             "window": window,
@@ -134,12 +164,15 @@ class JsonlManager:
             json.dump(record, f, ensure_ascii=False)
             f.write("\n")
 
+        return filepath
+
     def get_current_jsonl_path(self, timestamp: Optional[datetime] = None) -> Path:
         """
         現在使用すべきJSONLファイルのパスを取得
 
         手動分割で設定されたタスクファイルがある場合はそれを使用し、
         日付が変わっていたら自動的に日付ベースのファイルに切り替える。
+        同じ日付のファイルが複数ある場合は、最新のファイルを返す。
 
         Args:
             timestamp: タイムスタンプ（Noneの場合は現在時刻）
@@ -169,8 +202,17 @@ class JsonlManager:
                 # 日付が変わった、またはファイルが削除されている場合は状態をクリア
                 self._clear_current_task_file()
 
-        # 状態ファイルがない、または日付が変わった場合は日付ベースのファイルを使用
-        return self.get_jsonl_path(timestamp=timestamp, task_id=None)
+        # 同じ日付のファイルを検索（タイムスタンプ付きも含む）
+        date_str = current_effective_date.strftime("%Y-%m-%d")
+        pattern = f"{date_str}*.jsonl"
+        existing_files = sorted(self.logs_dir.glob(pattern), reverse=True)
+
+        if existing_files:
+            # 最新のファイルを返す（ファイル名の降順でソート済み）
+            return existing_files[0]
+        else:
+            # ファイルがない場合は日付ベースのファイルパスを返す
+            return self.get_jsonl_path(timestamp=timestamp, task_id=None, include_time=False)
 
     def _get_current_task_file(self) -> Optional[dict]:
         """

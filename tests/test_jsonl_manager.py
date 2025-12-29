@@ -224,9 +224,10 @@ class TestJsonlManager:
             # 状態をクリア
             manager._clear_current_task_file()
 
-            # クリア後は日付ベースのファイルが返されることを確認
+            # クリア後は既存ファイルの中で最新のファイルが返されることを確認
+            # （この場合はタスクファイルが最新）
             current_path = manager.get_current_jsonl_path(timestamp)
-            assert current_path.name == "2025-12-28.jsonl"
+            assert current_path == task_file
 
     def test_task_file_auto_switch_on_date_change(self):
         """日付が変わったら自動的に日付ベースのファイルに切り替わることをテスト"""
@@ -272,3 +273,134 @@ class TestJsonlManager:
 
             # 状態ファイルがクリアされていることを確認
             assert manager._get_current_task_file() is None
+
+    def test_get_jsonl_path_with_include_time(self):
+        """include_time=Trueで時刻付きファイル名が生成されることをテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            timestamp = datetime(2025, 12, 28, 14, 30, 25)
+            jsonl_path = manager.get_jsonl_path(timestamp=timestamp, include_time=True)
+
+            # ファイル名が日付+時刻であることを確認
+            assert jsonl_path.name == "2025-12-28_143025.jsonl"
+            assert jsonl_path.parent == Path(tmpdir) / ".screenocr_logs"
+
+    def test_append_record_auto_split_on_size_exceeded(self):
+        """ファイルサイズが上限を超えたら自動的に新ファイルが作成されることをテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            # 最初のファイルを作成し、100KBを超えるデータを書き込む
+            test_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28.jsonl"
+            test_file.parent.mkdir(exist_ok=True)
+
+            # 100KBを超えるダミーデータを作成（約101KB）
+            large_text = "x" * (100 * 1024 + 1000)
+            timestamp1 = datetime(2025, 12, 28, 10, 0, 0)
+            with open(test_file, "w", encoding="utf-8") as f:
+                record = {
+                    "timestamp": timestamp1.isoformat(),
+                    "window": "TestWindow",
+                    "text": large_text,
+                    "text_length": len(large_text),
+                }
+                json.dump(record, f, ensure_ascii=False)
+                f.write("\n")
+
+            # ファイルサイズが100KBを超えていることを確認
+            assert test_file.stat().st_size > manager.MAX_FILE_SIZE_BYTES
+
+            # 新しいレコードを追記すると、新しいファイルが作成されるはず
+            timestamp2 = datetime(2025, 12, 28, 10, 5, 30)
+            actual_path = manager.append_record(test_file, timestamp2, "TestWindow2", "New text")
+
+            # 新しいファイルが作成されたことを確認
+            assert actual_path != test_file
+            assert actual_path.name.startswith("2025-12-28_")
+            assert actual_path.name.endswith(".jsonl")
+            assert actual_path.exists()
+
+            # 新しいファイルにメタデータとレコードが書き込まれていることを確認
+            with open(actual_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            assert len(lines) == 2  # メタデータ + レコード
+
+            metadata = json.loads(lines[0])
+            assert metadata["type"] == "task_metadata"
+            assert "Auto-split" in metadata["description"]
+
+            new_record = json.loads(lines[1])
+            assert new_record["window"] == "TestWindow2"
+            assert new_record["text"] == "New text"
+
+            # 元のファイルはそのまま保持されていることを確認
+            assert test_file.exists()
+
+    def test_append_record_no_split_when_size_ok(self):
+        """ファイルサイズが上限以下の場合は分割されないことをテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            test_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28.jsonl"
+            test_file.parent.mkdir(exist_ok=True)
+
+            # 小さなデータを書き込む
+            timestamp1 = datetime(2025, 12, 28, 10, 0, 0)
+            manager.append_record(test_file, timestamp1, "TestWindow1", "Small text 1")
+
+            # ファイルサイズが100KB未満であることを確認
+            assert test_file.stat().st_size < manager.MAX_FILE_SIZE_BYTES
+
+            # 2つ目のレコードを追記
+            timestamp2 = datetime(2025, 12, 28, 10, 5, 0)
+            actual_path = manager.append_record(
+                test_file, timestamp2, "TestWindow2", "Small text 2"
+            )
+
+            # 同じファイルに追記されたことを確認
+            assert actual_path == test_file
+
+            # 2つのレコードが存在することを確認
+            with open(test_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            assert len(lines) == 2
+
+    def test_get_current_jsonl_path_returns_latest_file(self):
+        """同じ日付の複数ファイルから最新のファイルを返すことをテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+            logs_dir = Path(tmpdir) / ".screenocr_logs"
+            logs_dir.mkdir(exist_ok=True)
+
+            # 同じ日付の複数のファイルを作成
+            file1 = logs_dir / "2025-12-28.jsonl"
+            file2 = logs_dir / "2025-12-28_100000.jsonl"
+            file3 = logs_dir / "2025-12-28_103000.jsonl"
+
+            file1.touch()
+            file2.touch()
+            file3.touch()
+
+            timestamp = datetime(2025, 12, 28, 10, 35, 0)
+            current_path = manager.get_current_jsonl_path(timestamp)
+
+            # 最新のファイル（アルファベット順で最後）が返されることを確認
+            assert current_path == file3
+
+    def test_append_record_returns_path(self):
+        """append_recordが書き込んだファイルパスを返すことをテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            test_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28.jsonl"
+            test_file.parent.mkdir(exist_ok=True)
+
+            timestamp = datetime(2025, 12, 28, 10, 0, 0)
+            returned_path = manager.append_record(test_file, timestamp, "TestWindow", "Test text")
+
+            # 返されたパスが正しいことを確認
+            assert returned_path == test_file
+            assert returned_path.exists()
