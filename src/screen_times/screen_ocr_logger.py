@@ -218,8 +218,9 @@ class ScreenOCRLogger:
         """
         try:
             jsonl_path = self.jsonl_manager.get_current_jsonl_path(timestamp)
-            self.jsonl_manager.append_record(jsonl_path, timestamp, window, text)
-            return jsonl_path
+            # append_recordは実際に書き込んだファイルパスを返す（サイズ超過時は新ファイル）
+            actual_path = self.jsonl_manager.append_record(jsonl_path, timestamp, window, text)
+            return actual_path
         except Exception as e:
             if self.config.verbose:
                 print(f"Error: Failed to write to JSONL: {e}", file=sys.stderr)
