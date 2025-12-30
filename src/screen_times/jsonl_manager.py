@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
+from .record_merger import RecordMerger
+
 
 class JsonlManager:
     """JSONLファイルの管理を行うクラス"""
@@ -18,17 +20,23 @@ class JsonlManager:
     # ファイルサイズの上限（100KB = 約50Kトークン）
     MAX_FILE_SIZE_BYTES = 100 * 1024  # 100KB
 
-    def __init__(self, base_dir: Path = Path.home()):
+    def __init__(self, base_dir: Path = Path.home(), merge_threshold: Optional[float] = None):
         """
         初期化
 
         Args:
             base_dir: JSONLファイルを保存するベースディレクトリ
+            merge_threshold: 類似レコードをマージするしきい値（0.0～1.0）
+                           Noneの場合はマージを行わない
         """
         self.base_dir = base_dir
         self.logs_dir = base_dir / ".screenocr_logs"
         self.logs_dir.mkdir(exist_ok=True)
         self.state_file = self.logs_dir / ".current_jsonl"
+        self.merge_threshold = merge_threshold
+        self.merger: Optional[RecordMerger] = None
+        if merge_threshold is not None:
+            self.merger = RecordMerger(threshold=merge_threshold)
 
     def get_effective_date(self, timestamp: datetime) -> datetime:
         """
@@ -128,6 +136,7 @@ class JsonlManager:
         """
         レコードをJSONLファイルに追記
 
+        マージが有効な場合は、類似レコードを自動的にマージする。
         ファイルサイズが上限（100KB）を超えている場合は、新しいタイムスタンプ付きファイルを作成する。
 
         Args:
@@ -141,6 +150,12 @@ class JsonlManager:
         """
         # ファイルサイズチェック: 既存ファイルが上限を超えていたら新ファイルを作成
         if filepath.exists() and filepath.stat().st_size >= self.MAX_FILE_SIZE_BYTES:
+            # マージャーがある場合はフラッシュして書き込む
+            if self.merger:
+                buffered_record = self.merger.flush()
+                if buffered_record:
+                    self._write_record(filepath, buffered_record)
+
             # 新しいタイムスタンプ付きファイルを作成
             filepath = self.get_jsonl_path(timestamp=timestamp, include_time=True)
             # メタデータを書き込む
@@ -160,11 +175,43 @@ class JsonlManager:
             "text_length": len(text),
         }
 
+        # マージが有効な場合
+        if self.merger:
+            output_record = self.merger.add_record(record)
+            if output_record:
+                # マージされなかったレコードを書き込む
+                self._write_record(filepath, output_record)
+        else:
+            # マージなしの場合は直接書き込む
+            self._write_record(filepath, record)
+
+        return filepath
+
+    def _write_record(self, filepath: Path, record: dict) -> None:
+        """
+        レコードをJSONLファイルに書き込む
+
+        Args:
+            filepath: JSONLファイルのパス
+            record: 書き込むレコード
+        """
         with open(filepath, "a", encoding="utf-8") as f:
             json.dump(record, f, ensure_ascii=False)
             f.write("\n")
 
-        return filepath
+    def flush_merger(self, filepath: Path) -> None:
+        """
+        マージャーのバッファをフラッシュして書き込む
+
+        プログラム終了時などに呼び出す。
+
+        Args:
+            filepath: JSONLファイルのパス
+        """
+        if self.merger:
+            buffered_record = self.merger.flush()
+            if buffered_record:
+                self._write_record(filepath, buffered_record)
 
     def get_current_jsonl_path(self, timestamp: Optional[datetime] = None) -> Path:
         """
