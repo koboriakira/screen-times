@@ -233,13 +233,18 @@ def split_task(description: Optional[str] = None, clear: bool = False):
         effective_date = jsonl_manager.get_effective_date(timestamp)
         jsonl_manager._set_current_task_file(jsonl_path, effective_date.strftime("%Y-%m-%d"))
 
-        log_info(f"新しいJSONLファイルを作成しました: {jsonl_path}")
-        print(f"  タスク: {description}")
-        print(f"  タスクID: {task_id}")
-        print(f"  実効日付: {effective_date.strftime('%Y-%m-%d')}")
-        print()
-        print("このファイルに今後のログが記録されます。")
-        print("日付が変わると（朝5時を過ぎると）、自動的に日付ベースのファイルに切り替わります。")
+        # シェルスクリプトでの利用を考慮し、1行目に絶対パスのみを出力
+        print(jsonl_path.absolute())
+        log_info("新しいJSONLファイルを作成しました")
+        print(f"  タスク: {description}", file=sys.stderr)
+        print(f"  タスクID: {task_id}", file=sys.stderr)
+        print(f"  実効日付: {effective_date.strftime('%Y-%m-%d')}", file=sys.stderr)
+        print(file=sys.stderr)
+        print("このファイルに今後のログが記録されます。", file=sys.stderr)
+        print(
+            "日付が変わると（朝5時を過ぎると）、自動的に日付ベースのファイルに切り替わります。",
+            file=sys.stderr,
+        )
 
     except Exception as e:
         log_error(f"タスク分割に失敗しました: {e}")
