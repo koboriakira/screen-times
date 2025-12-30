@@ -311,32 +311,41 @@ class TestJsonlManager:
             # ファイルサイズが100KBを超えていることを確認
             assert test_file.stat().st_size > manager.MAX_FILE_SIZE_BYTES
 
-            # 新しいレコードを追記すると、新しいファイルが作成されるはず
+            # 新しいレコードを追記すると、既存ファイルに書き込まれるが、新しいファイルが準備される
             timestamp2 = datetime(2025, 12, 28, 10, 5, 30)
             actual_path = manager.append_record(test_file, timestamp2, "TestWindow2", "New text")
 
-            # 新しいファイルが作成されたことを確認
-            assert actual_path != test_file
-            assert actual_path.name.startswith("2025-12-28_")
-            assert actual_path.name.endswith(".jsonl")
-            assert actual_path.exists()
+            # 現在のファイルに書き込まれたことを確認
+            assert actual_path == test_file
 
-            # 新しいファイルにメタデータとレコードが書き込まれていることを確認
-            with open(actual_path, "r", encoding="utf-8") as f:
+            # 新しいファイルが作成されていることを確認（メタデータのみ）
+            new_files = sorted(
+                Path(tmpdir).glob(".screenocr_logs/2025-12-28_*.jsonl"), reverse=True
+            )
+            assert len(new_files) > 0
+
+            new_file = new_files[0]
+            assert new_file.name.startswith("2025-12-28_")
+            assert new_file.name.endswith(".jsonl")
+
+            # 新しいファイルにメタデータのみが書き込まれていることを確認
+            with open(new_file, "r", encoding="utf-8") as f:
                 lines = f.readlines()
 
-            assert len(lines) == 2  # メタデータ + レコード
+            assert len(lines) == 1  # メタデータのみ
 
             metadata = json.loads(lines[0])
             assert metadata["type"] == "task_metadata"
             assert "Auto-split" in metadata["description"]
 
+            # 元のファイルにレコードが追記されていることを確認
+            with open(test_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            assert len(lines) == 2  # 既存のレコード + 新しいレコード
             new_record = json.loads(lines[1])
             assert new_record["window"] == "TestWindow2"
             assert new_record["text"] == "New text"
-
-            # 元のファイルはそのまま保持されていることを確認
-            assert test_file.exists()
 
     def test_append_record_no_split_when_size_ok(self):
         """ファイルサイズが上限以下の場合は分割されないことをテスト"""

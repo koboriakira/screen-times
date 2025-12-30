@@ -137,7 +137,7 @@ class JsonlManager:
         レコードをJSONLファイルに追記
 
         マージが有効な場合は、類似レコードを自動的にマージする。
-        ファイルサイズが上限（100KB）を超えている場合は、新しいタイムスタンプ付きファイルを作成する。
+        レコード追記後にファイルサイズが上限（100KB）を超えた場合は、次回から新しいファイルを使用する。
 
         Args:
             filepath: JSONLファイルのパス
@@ -146,26 +146,17 @@ class JsonlManager:
             text: OCRテキスト
 
         Returns:
-            実際に書き込んだファイルのPath（サイズ超過時は新しいファイルのパス）
+            実際に書き込んだファイルのPath（常に現在のファイルパスを返す）
         """
-        # ファイルサイズチェック: 既存ファイルが上限を超えていたら新ファイルを作成
-        if filepath.exists() and filepath.stat().st_size >= self.MAX_FILE_SIZE_BYTES:
-            # マージャーがある場合はフラッシュして書き込む
-            if self.merger:
-                buffered_record = self.merger.flush()
-                if buffered_record:
-                    self._write_record(filepath, buffered_record)
+        # レコードサイズの警告（10KB以上の場合）
+        record_size = len(text.encode("utf-8"))
+        if record_size > 10 * 1024:  # 10KB
+            import sys
 
-            # 新しいタイムスタンプ付きファイルを作成
-            filepath = self.get_jsonl_path(timestamp=timestamp, include_time=True)
-            # メタデータを書き込む
-            description = (
-                f"Auto-split due to file size " f"exceeding {self.MAX_FILE_SIZE_BYTES} bytes"
-            )
-            self.write_metadata(
-                filepath,
-                description=description,
-                timestamp=timestamp,
+            print(
+                f"Warning: Large record detected ({record_size / 1024:.1f} KB) "
+                f"in window '{window}'. This may cause frequent file splits.",
+                file=sys.stderr,
             )
 
         record = {
@@ -184,6 +175,31 @@ class JsonlManager:
         else:
             # マージなしの場合は直接書き込む
             self._write_record(filepath, record)
+
+        # レコード追記後にファイルサイズをチェック
+        if filepath.exists() and filepath.stat().st_size >= self.MAX_FILE_SIZE_BYTES:
+            # マージャーがある場合はフラッシュして書き込む
+            if self.merger:
+                buffered_record = self.merger.flush()
+                if buffered_record:
+                    self._write_record(filepath, buffered_record)
+
+            # 次回使用する新しいファイルパスを生成
+            new_filepath = self.get_jsonl_path(timestamp=timestamp, include_time=True)
+
+            # メタデータを書き込む
+            description = (
+                f"Auto-split due to file size " f"exceeding {self.MAX_FILE_SIZE_BYTES} bytes"
+            )
+            self.write_metadata(
+                new_filepath,
+                description=description,
+                timestamp=timestamp,
+            )
+
+            # 状態ファイルを更新（次回からこのファイルを使用）
+            effective_date = self.get_effective_date(timestamp)
+            self._set_current_task_file(new_filepath, effective_date.strftime("%Y-%m-%d"))
 
         return filepath
 
