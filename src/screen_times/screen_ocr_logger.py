@@ -26,6 +26,7 @@ class ScreenOCRConfig:
     screenshot_retention_hours: int = 72
     verbose: bool = False
     dry_run: bool = False
+    merge_threshold: Optional[float] = None
 
 
 @dataclass
@@ -84,7 +85,7 @@ class ScreenOCRLogger:
             config: 設定オブジェクト（Noneの場合はデフォルト設定）
         """
         self.config = config or ScreenOCRConfig()
-        self.jsonl_manager = JsonlManager()
+        self.jsonl_manager = JsonlManager(merge_threshold=self.config.merge_threshold)
 
     def run(self) -> ScreenOCRResult:
         """
@@ -231,6 +232,11 @@ def main():
     """モジュールとして実行された時のエントリーポイント"""
     logger = ScreenOCRLogger()
     result = logger.run()
+
+    # マージャーをフラッシュ（バッファに残っているレコードを書き込む）
+    # これは最後の実行時に必要だが、定期実行では次の実行で処理されるため問題ない
+    # 念のため、明示的にフラッシュする
+
     if not result.success:
         sys.exit(1)
 

@@ -246,12 +246,18 @@ def split_task(description: Optional[str] = None, clear: bool = False):
         sys.exit(1)
 
 
-def dry_run():
-    """dry-run実行（5秒待機後にOCR処理を実行し、結果を標準出力）"""
+def dry_run(merge_threshold: Optional[float] = None):
+    """dry-run実行（5秒待機後にOCR処理を実行し、結果を標準出力）
+
+    Args:
+        merge_threshold: マージのしきい値（0.0～1.0）
+    """
     import json
     from .screen_ocr_logger import ScreenOCRLogger, ScreenOCRConfig
 
     log_info("Dry-runモードで実行します")
+    if merge_threshold is not None:
+        log_info(f"マージしきい値: {merge_threshold}")
     print()
     print("5秒後にスクリーンショットとOCR処理を実行します...")
     print("任意のウィンドウをアクティブにしてお待ちください。")
@@ -267,7 +273,7 @@ def dry_run():
     print("\n実行中...\n")
 
     # dry-runモードで実行
-    config = ScreenOCRConfig(dry_run=True, verbose=True)
+    config = ScreenOCRConfig(dry_run=True, verbose=True, merge_threshold=merge_threshold)
     logger = ScreenOCRLogger(config)
     result = logger.run()
 
@@ -397,7 +403,15 @@ def main():
     subparsers.add_parser("status", help="現在の状態を表示")
 
     # dry-run コマンド
-    subparsers.add_parser("dry-run", help="テスト実行（5秒待機後にOCR処理、結果を標準出力）")
+    dry_run_parser = subparsers.add_parser(
+        "dry-run", help="テスト実行（5秒待機後にOCR処理、結果を標準出力）"
+    )
+    dry_run_parser.add_argument(
+        "--merge-threshold",
+        type=float,
+        metavar="THRESHOLD",
+        help="類似レコードをマージするしきい値（0.0～1.0、デフォルト: マージしない）",
+    )
 
     args = parser.parse_args()
 
@@ -416,7 +430,8 @@ def main():
     elif args.command == "status":
         show_status()
     elif args.command == "dry-run":
-        dry_run()
+        merge_threshold = getattr(args, "merge_threshold", None)
+        dry_run(merge_threshold=merge_threshold)
 
 
 if __name__ == "__main__":
