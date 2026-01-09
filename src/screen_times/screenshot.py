@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from .electron_classifier import classify_electron_app, is_electron_app
+
 
 def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
     """
@@ -46,6 +48,7 @@ def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
 
             for window in window_list:
                 owner_name = window.get("kCGWindowOwnerName", "")
+                window_title = window.get("kCGWindowName", "")
                 layer = window.get("kCGWindowLayer", 0)
 
                 # レイヤー0（通常のウィンドウ）のみ対象
@@ -68,12 +71,28 @@ def get_active_window() -> tuple[str, Optional[tuple[int, int, int, int]]]:
                         y = int(bounds["Y"])
                         w = int(bounds["Width"])
                         h = int(bounds["Height"])
+
+                        # Electronアプリの場合は詳細な分類を行う
+                        final_app_name = app_name
+                        if is_electron_app(owner_name=owner_name, app_name=app_name):
+                            final_app_name = classify_electron_app(
+                                window_title=window_title,
+                                owner_name=owner_name,
+                                app_name=app_name,
+                            )
+                            print(
+                                f"Debug: Electron app detected - "
+                                f"Classified as: {final_app_name}, "
+                                f"Title: {window_title[:50] if window_title else 'None'}...",
+                                file=sys.stderr,
+                            )
+
                         print(
                             f"Debug: Matched window - Owner: {owner_name}, "
                             f"Bounds: ({x}, {y}, {w}, {h})",
                             file=sys.stderr,
                         )
-                        return (app_name, (x, y, w, h))
+                        return (final_app_name, (x, y, w, h))
 
             return (app_name, None)
 
