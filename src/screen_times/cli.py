@@ -200,7 +200,7 @@ def split_task(description: Optional[str] = None, clear: bool = False):
                 sys.exit(1)
 
         # JSONLマネージャーの初期化
-        jsonl_manager = JsonlManager(base_dir=Path.home())
+        jsonl_manager = JsonlManager()
 
         # --clear オプションまたは説明なしの場合は日付ベースに戻す
         if clear or not description:
@@ -341,7 +341,8 @@ def show_status():
         print(f"    -> {plist_dest}")
 
     # ログディレクトリ
-    log_dir = Path.home() / ".screenocr_logs"
+    jsonl_manager = JsonlManager()
+    log_dir = jsonl_manager.logs_dir
     if log_dir.exists():
         log_files = list(log_dir.glob("*.jsonl"))
         print(f"  ログファイル: {len(log_files)} 個")
@@ -349,7 +350,6 @@ def show_status():
 
         # 今日のログファイル
         timestamp = datetime.now()
-        jsonl_manager = JsonlManager(base_dir=Path.home())
         current_path = jsonl_manager.get_current_jsonl_path(timestamp)
         if current_path.exists():
             size_kb = current_path.stat().st_size / 1024

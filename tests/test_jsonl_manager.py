@@ -7,8 +7,9 @@ import json
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
-from screen_times.jsonl_manager import JsonlManager
+from screen_times.jsonl_manager import JsonlManager, get_default_logs_dir
 
 
 class TestJsonlManager:
@@ -63,7 +64,7 @@ class TestJsonlManager:
 
             # ファイル名が日付のみであることを確認
             assert jsonl_path.name == "2025-12-28.jsonl"
-            assert jsonl_path.parent == Path(tmpdir) / ".screenocr_logs"
+            assert jsonl_path.parent == Path(tmpdir) / "screenocr_logs"
 
     def test_get_jsonl_path_manual_with_task_id(self):
         """手動分割時のJSONLパス生成をテスト"""
@@ -76,7 +77,7 @@ class TestJsonlManager:
 
             # ファイル名が日付+タスクID+時刻であることを確認
             assert jsonl_path.name == "2025-12-28_feature-implementation_103045.jsonl"
-            assert jsonl_path.parent == Path(tmpdir) / ".screenocr_logs"
+            assert jsonl_path.parent == Path(tmpdir) / "screenocr_logs"
 
     def test_get_jsonl_path_before_5am(self):
         """5時より前の時刻のJSONLパス生成をテスト（前日扱い）"""
@@ -163,6 +164,7 @@ class TestJsonlManager:
             assert record["window"] == window
             assert record["text"] == text
             assert record["text_length"] == len(text)
+            assert record["status"] == "normal"
 
     def test_append_multiple_records(self):
         """複数レコードの追記をテスト"""
@@ -187,6 +189,7 @@ class TestJsonlManager:
                 record = json.loads(line)
                 assert record["window"] == f"Window{i}"
                 assert record["text"] == f"Text{i}"
+                assert record["status"] == "normal"
 
     def test_get_current_jsonl_path(self):
         """現在使用すべきJSONLパスの取得をテスト"""
@@ -199,13 +202,42 @@ class TestJsonlManager:
             # 自動分割用のパスが返されることを確認
             assert jsonl_path.name == "2025-12-28.jsonl"
 
+    def test_append_record_with_custom_status(self):
+        """カスタムステータスでレコード追記をテスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+
+            test_file = Path(tmpdir) / "test_status.jsonl"
+            timestamp = datetime(2025, 12, 28, 10, 0, 0)
+
+            # 異なるステータスでレコードを追加
+            manager.append_record(test_file, timestamp, "TestWindow", "normal text", "normal")
+            manager.append_record(test_file, timestamp, "TestWindow", "", "sleep")
+            manager.append_record(test_file, timestamp, "TestWindow", "error text", "error")
+
+            # レコードが正しく書き込まれていることを確認
+            with open(test_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            assert len(lines) == 3
+
+            records = [json.loads(line) for line in lines]
+            assert records[0]["status"] == "normal"
+            assert records[1]["status"] == "sleep"
+            assert records[2]["status"] == "error"
+
+            # テキストも確認
+            assert records[0]["text"] == "normal text"
+            assert records[1]["text"] == ""
+            assert records[2]["text"] == "error text"
+
     def test_task_file_state_management(self):
         """タスクファイルの状態管理をテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = JsonlManager(base_dir=Path(tmpdir))
 
             timestamp = datetime(2025, 12, 28, 10, 0, 0)
-            task_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
+            task_file = Path(tmpdir) / "screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
             task_file.touch()
 
             # 状態ファイルを設定
@@ -236,7 +268,7 @@ class TestJsonlManager:
 
             # 12/28のタスクファイルを設定
             timestamp1 = datetime(2025, 12, 28, 10, 0, 0)
-            task_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
+            task_file = Path(tmpdir) / "screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
             task_file.touch()
             manager._set_current_task_file(task_file, "2025-12-28")
 
@@ -260,7 +292,7 @@ class TestJsonlManager:
             manager = JsonlManager(base_dir=Path(tmpdir))
 
             timestamp = datetime(2025, 12, 28, 10, 0, 0)
-            task_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
+            task_file = Path(tmpdir) / "screenocr_logs" / "2025-12-28_test-task_100000.jsonl"
             task_file.touch()
             manager._set_current_task_file(task_file, "2025-12-28")
 
@@ -284,7 +316,7 @@ class TestJsonlManager:
 
             # ファイル名が日付+時刻であることを確認
             assert jsonl_path.name == "2025-12-28_143025.jsonl"
-            assert jsonl_path.parent == Path(tmpdir) / ".screenocr_logs"
+            assert jsonl_path.parent == Path(tmpdir) / "screenocr_logs"
 
     def test_append_record_auto_split_on_size_exceeded(self):
         """ファイルサイズが上限を超えたら自動的に新ファイルが作成されることをテスト"""
@@ -292,7 +324,7 @@ class TestJsonlManager:
             manager = JsonlManager(base_dir=Path(tmpdir))
 
             # 最初のファイルを作成し、100KBを超えるデータを書き込む
-            test_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28.jsonl"
+            test_file = Path(tmpdir) / "screenocr_logs" / "2025-12-28.jsonl"
             test_file.parent.mkdir(exist_ok=True)
 
             # 100KBを超えるダミーデータを作成（約101KB）
@@ -319,9 +351,7 @@ class TestJsonlManager:
             assert actual_path == test_file
 
             # 新しいファイルが作成されていることを確認（メタデータのみ）
-            new_files = sorted(
-                Path(tmpdir).glob(".screenocr_logs/2025-12-28_*.jsonl"), reverse=True
-            )
+            new_files = sorted(Path(tmpdir).glob("screenocr_logs/2025-12-28_*.jsonl"), reverse=True)
             assert len(new_files) > 0
 
             new_file = new_files[0]
@@ -352,7 +382,7 @@ class TestJsonlManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = JsonlManager(base_dir=Path(tmpdir))
 
-            test_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28.jsonl"
+            test_file = Path(tmpdir) / "screenocr_logs" / "2025-12-28.jsonl"
             test_file.parent.mkdir(exist_ok=True)
 
             # 小さなデータを書き込む
@@ -381,7 +411,7 @@ class TestJsonlManager:
         """同じ日付の複数ファイルから最新のファイルを返すことをテスト"""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = JsonlManager(base_dir=Path(tmpdir))
-            logs_dir = Path(tmpdir) / ".screenocr_logs"
+            logs_dir = Path(tmpdir) / "screenocr_logs"
             logs_dir.mkdir(exist_ok=True)
 
             # 同じ日付の複数のファイルを作成
@@ -404,7 +434,7 @@ class TestJsonlManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = JsonlManager(base_dir=Path(tmpdir))
 
-            test_file = Path(tmpdir) / ".screenocr_logs" / "2025-12-28.jsonl"
+            test_file = Path(tmpdir) / "screenocr_logs" / "2025-12-28.jsonl"
             test_file.parent.mkdir(exist_ok=True)
 
             timestamp = datetime(2025, 12, 28, 10, 0, 0)
@@ -413,3 +443,68 @@ class TestJsonlManager:
             # 返されたパスが正しいことを確認
             assert returned_path == test_file
             assert returned_path.exists()
+
+
+class TestGetDefaultLogsDir:
+    """get_default_logs_dir関数のテスト"""
+
+    @patch("screen_times.jsonl_manager.getpass.getuser", return_value="testuser")
+    def test_default_vault_path(self, mock_getuser):
+        """環境変数未設定時はデフォルトのVaultパスを使用すること"""
+        with patch.dict("os.environ", {}, clear=True):
+            result = get_default_logs_dir()
+            expected = (
+                Path.home()
+                / "Library"
+                / "Mobile Documents"
+                / "iCloud~md~obsidian"
+                / "Documents"
+                / "my-vault"
+                / "screenocr_logs"
+                / "testuser"
+            )
+            assert result == expected
+
+    @patch("screen_times.jsonl_manager.getpass.getuser", return_value="testuser")
+    def test_custom_vault_path_from_env(self, mock_getuser):
+        """OBSIDIAN_VAULT_PATH環境変数が設定されている場合はそれを使用すること"""
+        with patch.dict("os.environ", {"OBSIDIAN_VAULT_PATH": "/custom/vault"}):
+            result = get_default_logs_dir()
+            expected = Path("/custom/vault") / "screenocr_logs" / "testuser"
+            assert result == expected
+
+    @patch("screen_times.jsonl_manager.getpass.getuser", return_value="another_user")
+    def test_username_in_path(self, mock_getuser):
+        """getpass.getuser()のユーザー名がパスに含まれること"""
+        with patch.dict("os.environ", {"OBSIDIAN_VAULT_PATH": "/vault"}):
+            result = get_default_logs_dir()
+            assert result.name == "another_user"
+            assert result.parent.name == "screenocr_logs"
+
+
+class TestJsonlManagerInit:
+    """JsonlManager.__init__の変更に関するテスト"""
+
+    @patch("screen_times.jsonl_manager.get_default_logs_dir")
+    def test_default_uses_get_default_logs_dir(self, mock_get_default):
+        """base_dir=Noneの場合、get_default_logs_dir()を使用すること"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_get_default.return_value = Path(tmpdir) / "screenocr_logs" / "user"
+            manager = JsonlManager()
+            assert manager.logs_dir == Path(tmpdir) / "screenocr_logs" / "user"
+            mock_get_default.assert_called_once()
+
+    def test_base_dir_creates_screenocr_logs(self):
+        """base_dirを渡した場合、base_dir/screenocr_logsを使用すること"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = JsonlManager(base_dir=Path(tmpdir))
+            assert manager.logs_dir == Path(tmpdir) / "screenocr_logs"
+            assert manager.logs_dir.exists()
+
+    def test_base_dir_creates_parents(self):
+        """深いディレクトリ階層が自動作成されること"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            deep_path = Path(tmpdir) / "a" / "b" / "c"
+            manager = JsonlManager(base_dir=deep_path)
+            assert manager.logs_dir == deep_path / "screenocr_logs"
+            assert manager.logs_dir.exists()

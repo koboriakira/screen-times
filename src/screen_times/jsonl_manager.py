@@ -6,12 +6,37 @@ JSONL Manager - JSONLファイルの管理を行うモジュール
 朝5時を基準として日付を判定する。
 """
 
+import getpass
 import json
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
 from .record_merger import RecordMerger
+
+DEFAULT_VAULT_PATH = (
+    Path.home() / "Library" / "Mobile Documents" / "iCloud~md~obsidian" / "Documents" / "my-vault"
+)
+
+
+def get_default_logs_dir() -> Path:
+    """デフォルトのログディレクトリパスを取得
+
+    環境変数 OBSIDIAN_VAULT_PATH が設定されていればそれを使用し、
+    未設定時は macOS の Obsidian Vault デフォルトパスを使用する。
+    ユーザー名は getpass.getuser() で自動取得する。
+
+    Returns:
+        logs_dir の Path
+    """
+    vault_path_str = os.environ.get("OBSIDIAN_VAULT_PATH")
+    if vault_path_str:
+        vault_path = Path(vault_path_str)
+    else:
+        vault_path = DEFAULT_VAULT_PATH
+    username = getpass.getuser()
+    return vault_path / "screenocr_logs" / username
 
 
 class JsonlManager:
@@ -20,18 +45,21 @@ class JsonlManager:
     # ファイルサイズの上限（100KB = 約50Kトークン）
     MAX_FILE_SIZE_BYTES = 100 * 1024  # 100KB
 
-    def __init__(self, base_dir: Path = Path.home(), merge_threshold: Optional[float] = None):
+    def __init__(self, base_dir: Optional[Path] = None, merge_threshold: Optional[float] = None):
         """
         初期化
 
         Args:
             base_dir: JSONLファイルを保存するベースディレクトリ
+                     Noneの場合は get_default_logs_dir() を使用
             merge_threshold: 類似レコードをマージするしきい値（0.0～1.0）
                            Noneの場合はマージを行わない
         """
-        self.base_dir = base_dir
-        self.logs_dir = base_dir / ".screenocr_logs"
-        self.logs_dir.mkdir(exist_ok=True)
+        if base_dir is None:
+            self.logs_dir = get_default_logs_dir()
+        else:
+            self.logs_dir = base_dir / "screenocr_logs"
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
         self.state_file = self.logs_dir / ".current_jsonl"
         self.merge_threshold = merge_threshold
         self.merger: Optional[RecordMerger] = None
@@ -132,7 +160,9 @@ class JsonlManager:
             for line in existing_lines:
                 f.write(line)
 
-    def append_record(self, filepath: Path, timestamp: datetime, window: str, text: str) -> Path:
+    def append_record(
+        self, filepath: Path, timestamp: datetime, window: str, text: str, status: str = "normal"
+    ) -> Path:
         """
         レコードをJSONLファイルに追記
 
@@ -144,6 +174,7 @@ class JsonlManager:
             timestamp: タイムスタンプ
             window: ウィンドウ名
             text: OCRテキスト
+            status: 状態（"normal", "sleep", "error"など）
 
         Returns:
             実際に書き込んだファイルのPath（常に現在のファイルパスを返す）
@@ -164,6 +195,7 @@ class JsonlManager:
             "window": window,
             "text": text,
             "text_length": len(text),
+            "status": status,
         }
 
         # マージが有効な場合
