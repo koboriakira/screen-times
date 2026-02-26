@@ -49,6 +49,7 @@ class TestScreenOCRResult:
             text="Test text",
             text_length=9,
             jsonl_path=Path("/tmp/log.jsonl"),
+            status="normal",
         )
 
         str_repr = str(result)
@@ -67,6 +68,7 @@ class TestScreenOCRResult:
             text="",
             text_length=0,
             jsonl_path=None,
+            status="error",
             error="Test error message",
         )
 
@@ -255,4 +257,121 @@ class TestScreenOCRLogger:
             assert "Active window: TestApp" in captured.out
             assert "Screenshot saved:" in captured.out
             assert "OCR completed:" in captured.out
+            assert "Status detected:" in captured.out
             assert "Log saved to:" in captured.out
+
+    @patch("screen_times.screen_ocr_logger.perform_ocr")
+    @patch("screen_times.screen_ocr_logger.take_screenshot")
+    @patch("screen_times.screen_ocr_logger.get_active_window")
+    def test_detect_sleep_state_normal(
+        self, mock_get_window, mock_take_screenshot, mock_perform_ocr
+    ):
+        """通常状態の検出テスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # モックの設定
+            mock_get_window.return_value = ("TestApp", (0, 0, 800, 600))
+            mock_screenshot_path = Path(tmpdir) / "test_screenshot.png"
+            mock_screenshot_path.write_text("dummy content")  # ダミーファイル作成
+            mock_take_screenshot.return_value = mock_screenshot_path
+            mock_perform_ocr.return_value = "Some text content"  # 空でないテキスト
+
+            # 設定とロガーの作成
+            config = ScreenOCRConfig(screenshot_dir=Path(tmpdir), verbose=False)
+            logger = ScreenOCRLogger(config)
+
+            # 実行
+            result = logger.run()
+
+            # 検証
+            assert result.success is True
+            assert result.status == "normal"
+            assert result.text == "Some text content"
+
+    @patch("screen_times.screen_ocr_logger.perform_ocr")
+    @patch("screen_times.screen_ocr_logger.take_screenshot")
+    @patch("screen_times.screen_ocr_logger.get_active_window")
+    def test_detect_sleep_state_sleep(
+        self, mock_get_window, mock_take_screenshot, mock_perform_ocr
+    ):
+        """スリープ状態の検出テスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # モックの設定
+            mock_get_window.return_value = ("Electron", (0, 0, 800, 600))
+            mock_screenshot_path = Path(tmpdir) / "test_screenshot.png"
+            # 同じサイズのファイルを作成
+            mock_screenshot_path.write_bytes(b"x" * 90000)  # 90KB（88KBに近いサイズ）
+            mock_take_screenshot.return_value = mock_screenshot_path
+            mock_perform_ocr.return_value = ""  # 空のテキスト
+
+            # 設定とロガーの作成
+            config = ScreenOCRConfig(screenshot_dir=Path(tmpdir), verbose=False)
+            logger = ScreenOCRLogger(config)
+
+            # 複数回実行してスリープ状態を検出させる
+            results = []
+            for i in range(4):  # 4回実行
+                # 同じサイズのファイルを維持
+                mock_screenshot_path.write_bytes(b"x" * 90000)
+                result = logger.run()
+                results.append(result)
+
+            # 検証：consecutive_empty_count >= 3 でスリープ検出
+            # 1回目: count=1, last_size=None→記録 → normal
+            # 2回目: count=2, same size → normal
+            # 3回目: count=3, same size, >=3 → sleep
+            assert results[0].status == "normal"
+            assert results[1].status == "normal"
+            assert results[2].status == "sleep"
+            assert results[3].status == "sleep"
+
+    @patch("screen_times.screen_ocr_logger.perform_ocr")
+    @patch("screen_times.screen_ocr_logger.take_screenshot")
+    @patch("screen_times.screen_ocr_logger.get_active_window")
+    def test_detect_sleep_state_recovery(
+        self, mock_get_window, mock_take_screenshot, mock_perform_ocr
+    ):
+        """スリープ状態からの復帰テスト"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # モックの設定
+            mock_get_window.return_value = ("TestApp", (0, 0, 800, 600))
+            mock_screenshot_path = Path(tmpdir) / "test_screenshot.png"
+            mock_take_screenshot.return_value = mock_screenshot_path
+
+            # 設定とロガーの作成
+            config = ScreenOCRConfig(screenshot_dir=Path(tmpdir), verbose=False)
+            logger = ScreenOCRLogger(config)
+
+            # 1. スリープ状態を作り出す（空のテキスト、同じファイルサイズで3回）
+            mock_perform_ocr.return_value = ""
+            for i in range(3):
+                mock_screenshot_path.write_bytes(b"x" * 90000)
+                result = logger.run()
+
+            # 4回目でスリープ状態になる
+            mock_screenshot_path.write_bytes(b"x" * 90000)
+            result = logger.run()
+            assert result.status == "sleep"
+
+            # 2. 復帰：テキストが検出される
+            mock_perform_ocr.return_value = "Recovered text"
+            mock_screenshot_path.write_bytes(b"y" * 100000)  # 異なるサイズ
+            result = logger.run()
+
+            # 検証：復帰により normal 状態になる
+            assert result.status == "normal"
+            assert result.text == "Recovered text"
+
+    def test_detect_sleep_state_error_status(self):
+        """エラー時のステータステスト"""
+        config = ScreenOCRConfig(verbose=False)
+        logger = ScreenOCRLogger(config)
+
+        with patch(
+            "screen_times.screen_ocr_logger.get_active_window", side_effect=Exception("Test error")
+        ):
+            result = logger.run()
+
+            # 検証
+            assert result.success is False
+            assert result.status == "error"
+            assert result.error == "Test error"

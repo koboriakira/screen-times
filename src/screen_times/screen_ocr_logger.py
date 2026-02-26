@@ -40,6 +40,7 @@ class ScreenOCRResult:
     text: str
     text_length: int
     jsonl_path: Optional[Path]
+    status: str = "normal"
     error: Optional[str] = None
 
     def __str__(self) -> str:
@@ -86,6 +87,9 @@ class ScreenOCRLogger:
         """
         self.config = config or ScreenOCRConfig()
         self.jsonl_manager = JsonlManager(merge_threshold=self.config.merge_threshold)
+        # スリープ状態検出用の状態
+        self._last_screenshot_size: Optional[int] = None
+        self._consecutive_empty_count: int = 0
 
     def run(self) -> ScreenOCRResult:
         """
@@ -121,9 +125,14 @@ class ScreenOCRLogger:
             if self.config.verbose:
                 print(f"OCR completed: {len(text)} characters")
 
-            # 4. JSONL保存（dry-runモードではスキップ）
+            # 4. スリープ状態検出
+            status = self._detect_sleep_state(text, screenshot_path)
+            if self.config.verbose:
+                print(f"Status detected: {status}")
+
+            # 5. JSONL保存（dry-runモードではスキップ）
             if not self.config.dry_run:
-                jsonl_path = self._save_to_jsonl(timestamp, window_name, text)
+                jsonl_path = self._save_to_jsonl(timestamp, window_name, text, status)
                 if self.config.verbose:
                     print(f"Log saved to: {jsonl_path}")
             else:
@@ -131,7 +140,7 @@ class ScreenOCRLogger:
                 if self.config.verbose:
                     print("[DRY RUN] JSONL保存をスキップしました")
 
-            # 5. 成功結果を返す
+            # 6. 成功結果を返す
             return ScreenOCRResult(
                 success=True,
                 timestamp=timestamp,
@@ -140,6 +149,7 @@ class ScreenOCRLogger:
                 text=text,
                 text_length=len(text),
                 jsonl_path=jsonl_path,
+                status=status,
             )
 
         except Exception as e:
@@ -157,6 +167,7 @@ class ScreenOCRLogger:
                 text=text,
                 text_length=len(text),
                 jsonl_path=jsonl_path,
+                status="error",
                 error=error,
             )
 
@@ -202,7 +213,58 @@ class ScreenOCRLogger:
                 print(f"Warning: Screenshot cleanup failed: {cleanup_error}", file=sys.stderr)
             return 0
 
-    def _save_to_jsonl(self, timestamp: datetime, window: str, text: str) -> Path:
+    def _detect_sleep_state(self, text: str, screenshot_path: Path) -> str:
+        """
+        スリープ/ロック状態を検出する
+
+        以下の条件でスリープ状態を判定：
+        - テキストが空（text_length = 0）
+        - スクリーンショットのファイルサイズが前回と同じ
+        - 連続して空のテキストが3回以上記録される
+
+        Args:
+            text: OCRで抽出されたテキスト
+            screenshot_path: スクリーンショットファイルのパス
+
+        Returns:
+            状態を表す文字列（"normal", "sleep", "lock"）
+        """
+        # テキストが空でない場合は通常状態
+        if text.strip():
+            self._consecutive_empty_count = 0
+            self._last_screenshot_size = None
+            return "normal"
+
+        # テキストが空の場合、連続カウントを増加
+        self._consecutive_empty_count += 1
+
+        # スクリーンショットのファイルサイズを確認
+        try:
+            current_size = screenshot_path.stat().st_size
+        except (OSError, FileNotFoundError):
+            # ファイルアクセスエラーの場合は通常状態として扱う
+            return "normal"
+
+        # 初回の場合はサイズを記録して通常状態とする
+        if self._last_screenshot_size is None:
+            self._last_screenshot_size = current_size
+            return "normal"
+
+        # ファイルサイズが同じで、連続して空のテキストが3回以上の場合はスリープ状態
+        if current_size == self._last_screenshot_size and self._consecutive_empty_count >= 3:
+            return "sleep"
+
+        # ファイルサイズが変わった場合は、サイズを更新
+        if current_size != self._last_screenshot_size:
+            self._last_screenshot_size = current_size
+            # サイズが変わったということは画面が変化しているため、カウントをリセット
+            self._consecutive_empty_count = 1
+
+        return "normal"
+
+    def _save_to_jsonl(
+        self, timestamp: datetime, window: str, text: str, status: str = "normal"
+    ) -> Path:
         """
         JSONL形式でログを保存（日付ベースで自動分割）
 
@@ -210,6 +272,7 @@ class ScreenOCRLogger:
             timestamp: タイムスタンプ
             window: ウィンドウ名
             text: OCRテキスト
+            status: 状態（"normal", "sleep", "error"など）
 
         Returns:
             保存先のJSONLファイルパス
@@ -220,7 +283,9 @@ class ScreenOCRLogger:
         try:
             jsonl_path = self.jsonl_manager.get_current_jsonl_path(timestamp)
             # append_recordは実際に書き込んだファイルパスを返す（サイズ超過時は新ファイル）
-            actual_path = self.jsonl_manager.append_record(jsonl_path, timestamp, window, text)
+            actual_path = self.jsonl_manager.append_record(
+                jsonl_path, timestamp, window, text, status
+            )
             return actual_path
         except Exception as e:
             if self.config.verbose:
