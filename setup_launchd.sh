@@ -61,7 +61,7 @@ log_success "Python 3: $(python3 --version)"
 
 # リポジトリディレクトリの確認
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-REPO_DIR="$(dirname "$SCRIPT_DIR")"
+REPO_DIR="$SCRIPT_DIR"
 
 # Python インタープリタのパスを取得
 PYTHON_PATH="$(which python3)"
@@ -90,7 +90,7 @@ log_info "Python 依存ライブラリをチェック中..."
 
 python3 << 'EOF'
 try:
-    import pyobjc
+    import objc
     from Foundation import NSURL
     from Vision import VNRecognizeTextRequest
     from Cocoa import NSScreen
