@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(htmlcov/**)",
+      "Read(**/__pycache__/**)",
+      "Read(**/*.egg-info/**)",
+      "Read(.mypy_cache/**)",
+      "Read(Pipfile.lock)"
+    ]
+  }
+}
